@@ -3,9 +3,14 @@ var FPS = 30;
 var NODES = 6;
 var NODE_RADIUS = 50;
 var BALL_RADIUS = 10;
-var CLEAR_COLOUR = "rgba(0, 0, 0, 0)";
+var SHIELD_RADIUS = NODE_RADIUS + 10;
+var SHIELD_WIDTH = Math.PI / 12;
+var CLEAR_COLOUR = "rgb(255, 255, 255)";
 var LATTICE_COLOUR = "rgb(0, 0, 0)";
 var BALL_COLOUR = "rgb(255, 0, 0)";
+var SHIELD_COLOUR = "rgb(0, 0, 255)";
+var SHIELD_THICKNESS = 3;
+var SHIELD_MAXVEL = Math.PI / 8;
 
 // State
 var canvas_ball;
@@ -19,6 +24,7 @@ var normals = new Array(NODES);
 var ball;
 var ball_vel;
 var elapsed, before;
+var shields = new Array(NODES);
 
 window.onload = function () {
     canvas_ball = document.getElementById("ball");
@@ -43,6 +49,11 @@ window.onload = function () {
     ball_vel = { x: 200 * (Math.random() - 0.5),
                  y: 200 * (Math.random() - 0.5) };
 
+    for (var i = 0; i < shields.length; i++) {
+        shields[i] = Math.PI / NODES;
+    }
+
+
     before = performance.now();
 
     requestAnimationFrame(render);
@@ -52,6 +63,7 @@ function render(time) {
     elapsed = time - before;
 
     drawBall();
+    drawShields();
 
     before = time;
     requestAnimationFrame(render);
@@ -60,10 +72,10 @@ function render(time) {
 function calcLattice() {
     for (var i = 0; i < nodes.length; i++) {
         nodes[i] = { x: Math.floor(
-                         (Math.sin(2 * Math.PI * (i / NODES)) * radius)
+                         (Math.cos(2 * Math.PI * (i / NODES)) * radius)
                          + center.x),
                      y: Math.floor(
-                         (Math.cos(2 * Math.PI * (i / NODES)) * radius)
+                         (Math.sin(2 * Math.PI * (i / NODES)) * radius)
                          + center.y) };
     }
 
@@ -71,7 +83,8 @@ function calcLattice() {
         var edge = { x: nodes[(i + 1) % nodes.length].x - nodes[i].x,
                      y: nodes[(i + 1) % nodes.length].y - nodes[i].y };
         edge = norm(edge);
-        normals[i] = { x: edge.y, y: -edge.x };
+        normals[i] = { x: -edge.y, y: edge.x };
+        console.log(normals[i]);
     }
 }
 
@@ -92,7 +105,8 @@ function drawNodes() {
 }
 
 function drawBounds() {
-    ctx_bg.fillStyle = LATTICE_COLOUR;
+    ctx_bg.strokeStyle = LATTICE_COLOUR;
+    ctx_bg.lineWidth = 1;
     
     ctx_bg.beginPath();
     ctx_bg.moveTo(nodes[nodes.length - 1].x, nodes[nodes.length - 1].y);
@@ -108,6 +122,15 @@ function calcBall() {
 
     for (var i = 0; i < normals.length; i++) {
         var node_vector = { x: ball.x - nodes[i].x, y: ball.y - nodes[i].y };
+        var angle = Math.acos(dot(ccw90deg(normals[i]), norm(node_vector)));
+        
+        if (shields[i] - SHIELD_WIDTH <= angle && 
+            angle <= shields[i] + SHIELD_WIDTH &&
+            magsq(node_vector) <=
+                Math.pow(BALL_RADIUS + SHIELD_RADIUS + SHIELD_WIDTH, 2)) {
+            normal = norm(node_vector);
+            break;
+        }
 
         if (magsq(node_vector) <= Math.pow(BALL_RADIUS + NODE_RADIUS, 2)) {
             normal = norm(node_vector);
@@ -148,6 +171,73 @@ function drawBall() {
     ctx_ball.arc(ball.x, ball.y, BALL_RADIUS, 0, 2 * Math.PI, false);
     ctx_ball.fill();
     ctx_ball.closePath();
+}
+
+function calcShields() {
+    for (var i = 0; i < shields.length; i++) {
+        var ball_vec = { x: ball.x - nodes[i].x, y: ball.y - nodes[i].y };
+        ball_vec = norm(ball_vec);
+        var angle = Math.acos(dot(ccw90deg(normals[i]), ball_vec));
+        
+        if (angle < SHIELD_WIDTH + 0.04) {
+            angle = SHIELD_WIDTH + 0.04;
+        } else if ((2 * Math.PI / 3) - (SHIELD_WIDTH + 0.04) < angle) {
+            angle = (2 * Math.PI / 3) - (SHIELD_WIDTH + 0.04);
+        }
+
+        var angle_diff = angle - shields[i]; 
+        var angle_vel = Math.abs(angle_diff) / (elapsed / 1000);
+
+        if (angle_vel > SHIELD_MAXVEL) {
+            angle_diff = Math.sign(angle_diff) * 
+                            (SHIELD_MAXVEL * (elapsed / 1000));
+        }
+
+        shields[i] += angle_diff;
+    }
+}
+
+function drawShields() {
+    ctx_bg.lineWidth = SHIELD_THICKNESS + 1;
+    ctx_bg.strokeStyle = CLEAR_COLOUR;
+    for (var i = 0; i < shields.length; i++) {
+        var angle = (Math.sign(0.01 - normals[i].x) * Math.acos(normals[i].y)) +
+                    shields[i];
+
+        ctx_bg.beginPath();
+        ctx_bg.arc(nodes[i].x, nodes[i].y, SHIELD_RADIUS,
+                   angle - (SHIELD_WIDTH + 0.02), angle + (SHIELD_WIDTH + 0.02),
+                   false);
+        ctx_bg.stroke();
+        ctx_bg.closePath();
+    }
+
+    calcShields();
+
+    ctx_bg.lineWidth = SHIELD_THICKNESS;
+    ctx_bg.strokeStyle = SHIELD_COLOUR;
+    for (var i = 0; i < shields.length; i++) {
+        var angle = (Math.sign(0.01 - normals[i].x) * Math.acos(normals[i].y)) +
+                    shields[i];
+
+        ctx_bg.beginPath();
+        ctx_bg.arc(nodes[i].x, nodes[i].y, SHIELD_RADIUS,
+                   angle - SHIELD_WIDTH, angle + SHIELD_WIDTH, false);
+        ctx_bg.stroke();
+        ctx_bg.closePath();
+    }
+}
+
+function dot(v1, v2) {
+    return (v1.x * v2.x) + (v1.y * v2.y);
+}
+
+function cw90deg(vect) {
+    return { x: -vect.y, y: vect.x };
+}
+
+function ccw90deg(vect) {
+    return { x: vect.y, y: -vect.x };
 }
 
 function norm(vect) {
