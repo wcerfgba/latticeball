@@ -10,7 +10,7 @@ var LATTICE_COLOUR = "rgb(0, 0, 0)";
 var BALL_COLOUR = "rgb(255, 0, 0)";
 var SHIELD_COLOUR = "rgb(0, 0, 255)";
 var SHIELD_THICKNESS = 3;
-var SHIELD_MAXVEL = Math.PI / 8;
+var SHIELD_MAXVEL = Math.PI / 16;
 
 // State
 var canvas_ball;
@@ -25,13 +25,13 @@ var ball;
 var ball_vel;
 var elapsed, before;
 var shields = new Array(NODES);
+var health = new Array(NODES);
 
 window.onload = function () {
     canvas_ball = document.getElementById("ball");
     ctx_ball = canvas_ball.getContext("2d");
     canvas_bg = document.getElementById("bg");
     ctx_bg = canvas_bg.getContext("2d");
-
     
     canvas_ball.width = window.innerWidth;
     canvas_ball.height = window.innerHeight;
@@ -42,20 +42,20 @@ window.onload = function () {
                y: Math.floor(canvas_bg.height / 2) };
     radius = Math.floor((Math.min(canvas_bg.width, canvas_bg.height) / 2) - 20);
 
-    calcLattice();
-    drawLattice();
-
     ball = { x: center.x, y: center.y };
-    ball_vel = { x: 200 * (Math.random() - 0.5),
-                 y: 200 * (Math.random() - 0.5) };
+    ball_vel = { x: 400 * (Math.random() - 0.5),
+                 y: 400 * (Math.random() - 0.5) };
 
     for (var i = 0; i < shields.length; i++) {
         shields[i] = Math.PI / NODES;
+        health[i] = 100;
     }
-
 
     before = performance.now();
 
+    calcLattice();
+    drawLattice();
+    
     requestAnimationFrame(render);
 };
 
@@ -84,7 +84,6 @@ function calcLattice() {
                      y: nodes[(i + 1) % nodes.length].y - nodes[i].y };
         edge = norm(edge);
         normals[i] = { x: -edge.y, y: edge.x };
-        console.log(normals[i]);
     }
 }
 
@@ -93,18 +92,56 @@ function drawLattice() {
     drawNodes();
 }
 
-function drawNodes() {
+function drawNode(i) {
+    ctx_bg.lineWidth = 1;
+    ctx_bg.strokeStyle = CLEAR_COLOUR;
+    ctx_bg.beginPath();
+    ctx_bg.arc(nodes[i].x, nodes[i].y, NODE_RADIUS,
+               0, 2 * Math.PI, false);
+    ctx_bg.stroke();
+    ctx_bg.closePath();
+    ctx_bg.strokeStyle = LATTICE_COLOUR;
+    ctx_bg.beginPath();
+    ctx_bg.arc(nodes[i].x, nodes[i].y, NODE_RADIUS,
+               0, 2 * Math.PI, false);
+    ctx_bg.stroke();
+    ctx_bg.closePath();
+    ctx_bg.fillStyle = CLEAR_COLOUR;
+    ctx_bg.beginPath();
+    ctx_bg.arc(nodes[i].x, nodes[i].y, NODE_RADIUS - 1,
+               0, 2 * Math.PI, false);
+    ctx_bg.fill();
+    ctx_bg.closePath();
     ctx_bg.fillStyle = LATTICE_COLOUR;
+    ctx_bg.beginPath();
+    ctx_bg.arc(nodes[i].x, nodes[i].y, nodeRadius(i),
+               0, 2 * Math.PI, false);
+    ctx_bg.fill();
+    ctx_bg.closePath();
+}
 
-    for (var i = 0; i < nodes.length; i++) {
-        ctx_bg.beginPath();
-        ctx_bg.arc(nodes[i].x, nodes[i].y, NODE_RADIUS, 0, 2 * Math.PI, false);
-        ctx_bg.fill();
-        ctx_bg.closePath();
+function drawNodes() {
+    for (var i = 0; i < NODES; i++) {
+        drawNode(i);
     }
 }
 
+function nodeRadius(i) {
+    return Math.floor(NODE_RADIUS * (health[i] / 100));
+}
+
 function drawBounds() {
+    ctx_bg.strokeStyle = CLEAR_COLOUR;
+    ctx_bg.lineWidth = 2;
+    
+    ctx_bg.beginPath();
+    ctx_bg.moveTo(nodes[nodes.length - 1].x, nodes[nodes.length - 1].y);
+    for (var i = 0; i < nodes.length; i++) {
+        ctx_bg.lineTo(nodes[i].x, nodes[i].y);
+    }
+    ctx_bg.stroke(); 
+    ctx_bg.closePath();
+    
     ctx_bg.strokeStyle = LATTICE_COLOUR;
     ctx_bg.lineWidth = 1;
     
@@ -134,6 +171,11 @@ function calcBall() {
 
         if (magsq(node_vector) <= Math.pow(BALL_RADIUS + NODE_RADIUS, 2)) {
             normal = norm(node_vector);
+            
+            var new_health = health[i] - 10;
+            health[i] = new_health > 0 ? new_health : 0;
+            drawNode(i);
+
             break;
         }
 
