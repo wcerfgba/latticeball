@@ -12,7 +12,6 @@ window.onload = function () {
     let game = buildGame(config.shape, canvas_bg.width, canvas_bg.height);
 
     let before = performance.now();
-    let collisionResume = before;
 
 
 
@@ -29,16 +28,14 @@ window.onload = function () {
 
     let animate = function (timestamp) {
         for (let i = 0; i < game.players.length; i++) {
-            if (collisionResume < timestamp &&
-                game.players[i].collisionHandler(game.ball)) {
-                collisionResume = timestamp + 10;
+            if (game.players[i].collisionHandler(game.ball)) {
+                break;
             }
         }
 
         for (let i = 0; i < game.boundPoints.length; i++) {
-            if (collisionResume < timestamp && 
-                game.boundPoints[i].collisionHandler(game.ball)) {
-                collisionResume = timestamp + 10;
+            if (game.boundPoints[i].collisionHandler(game.ball)) {
+                break;
             }
         }
 
@@ -147,6 +144,11 @@ Player.prototype.collisionHandler = function (ball) {
     let v = util.vect.sub(ball.position, this.position);
     let v_magsq = util.vect.magsq(v);
     let v_angle = util.vect.angle(v);
+    let normal_velocity = -util.vect.dot(v, ball.velocity);
+
+    if (normal_velocity < 0) {
+        return false;
+    }
 
     if (v_magsq < Math.pow(this.shieldRadius + ball.radius, 2) + 1 &&
         util.angle.between(this.shieldStartAngle, v_angle,
@@ -240,10 +242,12 @@ BoundPoint.prototype.collisionHandler = function (ball) {
         return false;
     }
 
-    let v = util.vect.sub(this.position, ball.position);
-    let dist = Math.abs(util.vect.dot(v, this.normal));
+    let v = util.vect.sub(ball.position, this.position);
+    let normal_position = util.vect.dot(v, this.normal);
+    let normal_velocity = util.vect.dot(ball.velocity, this.normal);
 
-    if (dist < ball.radius + 1) {
+    if (Math.abs(normal_position) < ball.radius + 1 &&
+        Math.sign(normal_position) != Math.sign(normal_velocity)) {
         ball.velocity = util.vect.reflect(ball.velocity, this.normal);
         console.log("bound");
         return true;
