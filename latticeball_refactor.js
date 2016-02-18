@@ -27,19 +27,28 @@ window.onload = function () {
 
 
     let animate = function (timestamp) {
-        for (let i = 0; i < game.players.length; i++) {
-            if (game.players[i].collisionHandler(game.ball)) {
-                break;
+        let time = timestamp - before;
+
+        while (time > 0) {
+            let t = time > 16 ? 16 : time;
+
+            for (let i = 0; i < game.players.length; i++) {
+                if (game.players[i].collisionHandler(game.ball)) {
+                    break;
+                }
             }
+
+            for (let i = 0; i < game.boundPoints.length; i++) {
+                if (game.boundPoints[i].collisionHandler(game.ball)) {
+                    break;
+                }
+            }
+
+            game.ball.move(t);
+
+            time -= t;
         }
 
-        for (let i = 0; i < game.boundPoints.length; i++) {
-            if (game.boundPoints[i].collisionHandler(game.ball)) {
-                break;
-            }
-        }
-
-        game.ball.move(timestamp - before);
         game.ball.redraw(ctx_ball);
 
         before = timestamp;
@@ -140,6 +149,10 @@ function Player(x, y, startAngle, endAngle, radius,
     this.health = 1;
 }
 
+Player.prototype.collisionPossible = function (a_x, a_y, b_x, b_y) {
+
+};
+
 Player.prototype.collisionHandler = function (ball) {
     let v = util.vect.sub(ball.position, this.position);
     let v_magsq = util.vect.magsq(v);
@@ -213,36 +226,57 @@ Player.prototype.redrawShield = function (ctx) {
 };
 
 
-function BoundPoint(x, y, nextPoint) {
-    Object.defineProperty(this, "nextPoint", {
-        set: function (val) {
-                if (val instanceof BoundPoint) {
-                    this._nextPoint = val;
-                    this.normal = util.vect.cw90deg(
-                                    util.vect.norm(
-                                        util.vect.sub(this.nextPoint.position,
-                                                      this.position)));
-                } else {
-                    this._nextPoint = null;
-                    this.normal = null;
-                }
-        },
-        get: function () {
-            return this._nextPoint;
-        }
-    });
-
-    this.position = { x: x, y: y };
-    this.normal = null;
-    this.nextPoint = nextPoint;
+function Bound(a_x, a_y, b_x, b_y) {
+    this.a = { x: a_x, y: a_y };
+    this.b = { x: b_x, y: b_y };
+    this.direction = util.vect.norm(util.vect.sub(b, a));
+    this.normal = util.vect.cw90deg(this.direction);
 }
 
-BoundPoint.prototype.collisionHandler = function (ball) {
-    if (!this.nextPoint) {
-        return false;
+Bound.prototype.collisionPossible = function (a_x, a_y, b_x, b_y) {
+    // Set horizontal and vertical lines of the box.
+    let w_x = a_x;
+    let n_y = a_y;
+    let e_x = b_x;
+    let s_y = b_y;
+
+    // Test if either point is in the box.
+    if ((w_x <= this.a.x && this.a.x <= e_x &&
+         n_y <= this.a.y && this.a.y <= s_y) ||
+        (w_x <= this.b.x && this.b.x <= e_x &&
+         n_y <= this.b.y && this.b.y <= s_y)) {
+        return true;
     }
 
-    let v = util.vect.sub(ball.position, this.position);
+    // Find magnitude of direction vector necessary to intersect each line of 
+    // the box...
+    let w_p = (w_x - this.a.x) / this.direction.x;
+    let n_p = (n_y - this.a.y) / this.direction.y;
+    let e_p = (e_x - this.a.x) / this.direction.x;
+    let s_p = (s_y - this.a.y) / this.direction.y;
+    // ... and the resultant coordinate.
+    let w_y = this.a.y + (this.direction.y * w_p);
+    let n_x = this.a.x + (this.direction.x * n_p);
+    let e_y = this.a.y + (this.direction.y * e_p);
+    let s_x = this.a.x + (this.direction.x * s_p);
+    
+    // Calculate maximum magnitude of direction vector.
+    let max_p = util.vect.mag(util.vect.sub(this.b, this.a));
+
+    // Bounds passes through the box if a projection less than max magnitude 
+    // lies between the bounds defined by the perpendicular lines.
+    if ((n_y <= w_y && w_y <= s_y && w_p < max_p) ||
+        (w_x <= n_x && n_x <= e_x && n_p < max_p) ||
+        (n_y <= e_y && e_y <= s_y && e_p < max_p) ||
+        (w_x <= s_x && s_x <= e_x && s_p < max_p)) {
+        return true;
+    }
+
+    return false;
+};
+
+Bound.prototype.collisionHandler = function (ball) {
+    let v = util.vect.sub(ball.position, this.a);
     let normal_position = util.vect.dot(v, this.normal);
     let normal_velocity = util.vect.dot(ball.velocity, this.normal);
 
@@ -256,21 +290,17 @@ BoundPoint.prototype.collisionHandler = function (ball) {
     return false;
 };
 
-BoundPoint.prototype.redraw = function (ctx) {
-    if (!this.nextPoint) {
-        return;
-    }
-
+Bound.prototype.redraw = function (ctx) {
     ctx.beginPath();
-    ctx.moveTo(this.position.x, this.position.y);
-    ctx.lineTo(this.nextPoint.position.x, this.nextPoint.position.y);
+    ctx.moveTo(this.a.x, this.a.y);
+    ctx.lineTo(this.b.x, this.b.y);
     ctx.closePath();
     ctx.strokeStyle = config.bgStyle;
     ctx.lineWidth = config.boundWidth + 1;
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(this.position.x, this.position.y);
-    ctx.lineTo(this.nextPoint.position.x, this.nextPoint.position.y);
+    ctx.moveTo(this.a.x, this.a.y);
+    ctx.lineTo(this.b.x, this.b.y);
     ctx.closePath();
     ctx.strokeStyle = config.boundStyle;
     ctx.lineWidth = config.boundWidth;
@@ -298,8 +328,11 @@ var util = {
         magsq: function (v) {
             return Math.pow(v.x, 2) + Math.pow(v.y, 2);
         },
+        mag: function (v) {
+            return Math.sqrt(util.vect.magsq(v));
+        },
         norm: function (v) {
-            let mag = Math.sqrt(util.vect.magsq(v));
+            let mag = util.vect.mag(v);
             return { x: v.x / mag, y: v.y / mag };
         },
         dot: function (v, w) {
