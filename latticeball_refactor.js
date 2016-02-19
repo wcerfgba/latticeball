@@ -11,6 +11,40 @@ window.onload = function () {
 
     let game = buildGame(config.shape, canvas_bg.width, canvas_bg.height);
 
+    let collisionCellSize = 15;
+    let collisionMap = new Array(Math.ceil(canvas_bg.width / collisionCellSize));
+    for (let i = 0; i < collisionMap.length; i++) {
+        collisionMap[i] = new Array(Math.ceil(canvas_bg.height / collisionCellSize));
+
+        for (let j = 0; j < collisionMap[i].length; j++) {
+            collisionMap[i][j] = new Array();
+
+            let a_x = collisionCellSize * i;
+            let a_y = collisionCellSize * j;
+            let b_x = a_x + collisionCellSize;
+            let b_y = a_y + collisionCellSize;
+
+            ctx_bg.fillStyle = "rgba(0, 255, 0, 0.25)";
+            ctx_bg.strokeStyle = "rgb(128, 128, 128)";
+            ctx_bg.lineWidth = 1;
+            ctx_bg.strokeRect(a_x, a_y, b_x - a_x, b_y - a_y);
+
+            for (let k = 0; k < game.players.length; k++) {
+                if (game.players[k].collisionPossible(a_x, a_y, collisionCellSize)) {
+                    collisionMap[i][j].push(game.players[k]);
+                    ctx_bg.fillRect(a_x, a_y, collisionCellSize, collisionCellSize);
+                }
+            }
+
+            for (let k = 0; k < game.bounds.length; k++) {
+                if (game.bounds[k].collisionPossible(a_x, a_y, collisionCellSize)) {
+                    collisionMap[i][j].push(game.bounds[k]);
+                    ctx_bg.fillRect(a_x, a_y, collisionCellSize, collisionCellSize);
+                }
+            }
+        }
+    }
+
     let before = performance.now();
 
 
@@ -20,36 +54,57 @@ window.onload = function () {
             game.players[i].redrawShield(ctx_bg);
         }
 
-        for (let i = 0; i < game.boundPoints.length; i++) {
-            game.boundPoints[i].redraw(ctx_bg);
+        for (let i = 0; i < game.bounds.length; i++) {
+            game.bounds[i].redraw(ctx_bg);
         }
 
+    let detectCollisions = function (collisionMap, cellSize, ball) {
+        let idx_x = Math.floor(ball.position.x / cellSize);
+        let idx_y = Math.floor(ball.position.y / cellSize);
+
+        for (let i = (0 < idx_x ? -1 : 0);
+             i <= (idx_x < collisionMap.length ? 1 : 0);
+             i++) {
+            for (let j = (0 < idx_y ? -1 : 0);
+                 j <= (idx_y < collisionMap[0].length ? 1 : 0);
+                 j++) {
+                let cell = collisionMap[idx_x + i][idx_y + j];
+            
+            
+
+
+            ctx_ball.globalCompositeOperation = "source-over";
+            ctx_ball.fillStyle = "rgba(0, 0, 255, 0.333)";
+            ctx_ball.fillRect((idx_x + i) * cellSize, (idx_y + j) * cellSize,
+                              cellSize, cellSize);
+
+
+
+
+                for (let k = 0; k < cell.length; k++) {
+                    if (cell[k].collisionHandler(game.ball)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    };
 
 
     let animate = function (timestamp) {
         let time = timestamp - before;
 
+        game.ball.redraw(ctx_ball);
+        
         while (time > 0) {
             let t = time > 16 ? 16 : time;
 
-            for (let i = 0; i < game.players.length; i++) {
-                if (game.players[i].collisionHandler(game.ball)) {
-                    break;
-                }
-            }
-
-            for (let i = 0; i < game.boundPoints.length; i++) {
-                if (game.boundPoints[i].collisionHandler(game.ball)) {
-                    break;
-                }
-            }
+            detectCollisions(collisionMap, collisionCellSize, game.ball);
 
             game.ball.move(t);
 
             time -= t;
         }
-
-        game.ball.redraw(ctx_ball);
 
         before = timestamp;
         requestAnimationFrame(animate);
@@ -82,7 +137,7 @@ function buildGame(n, width, height) {
     let angle = TAU / n;
 
     let players = new Array(n);
-    let boundPoints = new Array(2 * n);
+    let bounds = new Array(n);
     let ball = new Ball(center.x, center.y, config.ballRadius);
     
     for (let i = 0; i < n; i++) {
@@ -95,22 +150,20 @@ function buildGame(n, width, height) {
 
         players[i] = new Player(x, y, startAngle % TAU, endAngle % TAU,
                                 config.nodeRadius, config.shieldRadius,
-                                (shieldCenter  - config.shieldHalfWidth) % TAU,
+                                (shieldCenter - config.shieldHalfWidth) % TAU,
                                 (shieldCenter + config.shieldHalfWidth) % TAU);
 
-        let x_a = x + (Math.cos(startAngle) * config.nodeRadius);
-        let y_a = y + (Math.sin(startAngle) * config.nodeRadius);
-        let x_b = center.x + (Math.cos(disp_angle + (TAU / n)) * radius) -
+        let a_x = x + (Math.cos(startAngle) * config.nodeRadius);
+        let a_y = y + (Math.sin(startAngle) * config.nodeRadius);
+        let b_x = center.x + (Math.cos(disp_angle + (TAU / n)) * radius) -
                     (Math.cos(startAngle) * config.nodeRadius);       
-        let y_b = center.y + (Math.sin(disp_angle + (TAU / n)) * radius) - 
+        let b_y = center.y + (Math.sin(disp_angle + (TAU / n)) * radius) - 
                     (Math.sin(startAngle) * config.nodeRadius);       
- 
-        boundPoints[2 * i] = new BoundPoint(x_a, y_a, null);
-        boundPoints[(2 * i) + 1] = new BoundPoint(x_b, y_b, boundPoints[2 * i]);
-        boundPoints[2 * i].nextPoint = boundPoints[(2 * i) + 1];
+
+        bounds[i] = new Bound(a_x, a_y, b_x, b_y); 
     }
 
-    return { players: players, boundPoints: boundPoints, ball: ball };
+    return { players: players, bounds: bounds, ball: ball };
 }
 
 
@@ -130,7 +183,7 @@ Ball.prototype.redraw = function (ctx) {
     ctx.globalCompositeOperation = "copy";
     ctx.beginPath();
     ctx.arc(this.position.x, this.position.y, this.radius,
-            0, 2 * Math.PI, false);
+            0, TAU, false);
     ctx.closePath();
     ctx.fillStyle = config.ballStyle;
     ctx.fill();
@@ -149,8 +202,25 @@ function Player(x, y, startAngle, endAngle, radius,
     this.health = 1;
 }
 
-Player.prototype.collisionPossible = function (a_x, a_y, b_x, b_y) {
 
+// TODO: Implement handling for sides of nodes.
+
+
+Player.prototype.collisionPossible = function (x, y, size) {
+    let radius = size / 2;
+    let center = { x: x + radius, y: y + radius };
+    let v = util.vect.sub(center, this.position);
+    let dist = util.vect.mag(v);
+    let angle = util.vect.angle(v);
+    let edge_dist = radius / Math.max(Math.abs(Math.cos(angle)),
+                                      Math.abs(Math.sin(angle)));
+
+    if (dist < this.shieldRadius + edge_dist + 1 &&
+        util.angle.between(this.startAngle, angle, this.endAngle)) {
+        return true;
+    }
+    
+    return false;
 };
 
 Player.prototype.collisionHandler = function (ball) {
@@ -229,16 +299,16 @@ Player.prototype.redrawShield = function (ctx) {
 function Bound(a_x, a_y, b_x, b_y) {
     this.a = { x: a_x, y: a_y };
     this.b = { x: b_x, y: b_y };
-    this.direction = util.vect.norm(util.vect.sub(b, a));
+    this.direction = util.vect.norm(util.vect.sub(this.b, this.a));
     this.normal = util.vect.cw90deg(this.direction);
 }
 
-Bound.prototype.collisionPossible = function (a_x, a_y, b_x, b_y) {
+Bound.prototype.collisionPossible = function (x, y, size) {
     // Set horizontal and vertical lines of the box.
-    let w_x = a_x;
-    let n_y = a_y;
-    let e_x = b_x;
-    let s_y = b_y;
+    let w_x = x;
+    let n_y = y;
+    let e_x = x + size;
+    let s_y = y + size;
 
     // Test if either point is in the box.
     if ((w_x <= this.a.x && this.a.x <= e_x &&
@@ -265,10 +335,10 @@ Bound.prototype.collisionPossible = function (a_x, a_y, b_x, b_y) {
 
     // Bounds passes through the box if a projection less than max magnitude 
     // lies between the bounds defined by the perpendicular lines.
-    if ((n_y <= w_y && w_y <= s_y && w_p < max_p) ||
-        (w_x <= n_x && n_x <= e_x && n_p < max_p) ||
-        (n_y <= e_y && e_y <= s_y && e_p < max_p) ||
-        (w_x <= s_x && s_x <= e_x && s_p < max_p)) {
+    if ((n_y <= w_y && w_y <= s_y && 0 < w_p && w_p < max_p) ||
+        (w_x <= n_x && n_x <= e_x && 0 < n_p && n_p < max_p) ||
+        (n_y <= e_y && e_y <= s_y && 0 < e_p && e_p < max_p) ||
+        (w_x <= s_x && s_x <= e_x && 0 < s_p && s_p < max_p)) {
         return true;
     }
 
