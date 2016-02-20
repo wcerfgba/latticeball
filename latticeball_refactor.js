@@ -11,7 +11,7 @@ window.onload = function () {
 
     let game = buildGame(config.shape, canvas_bg.width, canvas_bg.height);
 
-    let collisionCellSize = 15;
+    let collisionCellSize = 20;
     let collisionMap = new Array(Math.ceil(canvas_bg.width / collisionCellSize));
     for (let i = 0; i < collisionMap.length; i++) {
         collisionMap[i] = new Array(Math.ceil(canvas_bg.height / collisionCellSize));
@@ -24,7 +24,7 @@ window.onload = function () {
             let b_x = a_x + collisionCellSize;
             let b_y = a_y + collisionCellSize;
 
-            ctx_bg.fillStyle = "rgba(0, 255, 0, 0.25)";
+            ctx_bg.fillStyle = "rgba(0, 255, 0, 0.2)";
             ctx_bg.strokeStyle = "rgb(128, 128, 128)";
             ctx_bg.lineWidth = 1;
             ctx_bg.strokeRect(a_x, a_y, b_x - a_x, b_y - a_y);
@@ -57,6 +57,8 @@ window.onload = function () {
         for (let i = 0; i < game.bounds.length; i++) {
             game.bounds[i].redraw(ctx_bg);
         }
+
+
 
     let detectCollisions = function (collisionMap, cellSize, ball) {
         let idx_x = Math.floor(ball.position.x / cellSize);
@@ -132,46 +134,42 @@ const TAU = 2 * Math.PI;
 
 
 function buildGame(n, width, height) {
-    let center = { x: width / 2, y: height / 2 };
+    let center = new V(width / 2, height / 2);
     let radius = Math.min(center.x, center.y) - 10;
     let angle = TAU / n;
 
     let players = new Array(n);
     let bounds = new Array(n);
-    let ball = new Ball(center.x, center.y, config.ballRadius);
+    let ball = new Ball(new V(center.x, center.y), config.ballRadius);
     
     for (let i = 0; i < n; i++) {
         let disp_angle = i * angle;
-        let x = center.x + (Math.cos(disp_angle) * radius);
-        let y = center.y + (Math.sin(disp_angle) * radius);
+        let position = center.add(new V(Math.cos(disp_angle) * radius,
+                                        Math.sin(disp_angle) * radius));
         let startAngle = disp_angle + (TAU / 4) + (angle / 2);
         let endAngle = disp_angle + (TAU * (3 / 4)) - (angle / 2);
         let shieldCenter = (startAngle + endAngle) / 2;
 
-        players[i] = new Player(x, y, startAngle % TAU, endAngle % TAU,
+        players[i] = new Player(position, startAngle % TAU, endAngle % TAU,
                                 config.nodeRadius, config.shieldRadius,
                                 (shieldCenter - config.shieldHalfWidth) % TAU,
                                 (shieldCenter + config.shieldHalfWidth) % TAU);
-
-        let a_x = x + (Math.cos(startAngle) * config.nodeRadius);
-        let a_y = y + (Math.sin(startAngle) * config.nodeRadius);
-        let b_x = center.x + (Math.cos(disp_angle + (TAU / n)) * radius) -
-                    (Math.cos(startAngle) * config.nodeRadius);       
-        let b_y = center.y + (Math.sin(disp_angle + (TAU / n)) * radius) - 
-                    (Math.sin(startAngle) * config.nodeRadius);       
-
-        bounds[i] = new Bound(a_x, a_y, b_x, b_y); 
     }
 
+    for (let i = 0; i < n; i++) {
+        bounds[i] = new Bound(players[i].startBound.b,
+                              players[(i + 1) % n].endBound.b);
+    }
+    
     return { players: players, bounds: bounds, ball: ball };
 }
 
 
-function Ball(x, y, radius) {
-    this.position = { x: x, y: y };
+function Ball(position, radius) {
+    this.position = position;
     this.radius = radius;
-    this.velocity = { x: 0.4 * (Math.random() - 0.5),
-                      y: 0.4 * (Math.random() - 0.5) };
+    this.velocity = new V(0.4 * (Math.random() - 0.5),
+                          0.4 * (Math.random() - 0.5));
 }
 
 Ball.prototype.move = function (time) {
@@ -182,41 +180,45 @@ Ball.prototype.move = function (time) {
 Ball.prototype.redraw = function (ctx) {
     ctx.globalCompositeOperation = "copy";
     ctx.beginPath();
-    ctx.arc(this.position.x, this.position.y, this.radius,
-            0, TAU, false);
+    ctx.arc(this.position.x, this.position.y, this.radius, 0, TAU, false);
     ctx.closePath();
     ctx.fillStyle = config.ballStyle;
     ctx.fill();
 };
 
 
-function Player(x, y, startAngle, endAngle, radius,
+function Player(position, startAngle, endAngle, radius,
                 shieldRadius, shieldStartAngle, shieldEndAngle) {
-    this.position = { x: x, y: y };
+    this.position = position;
     this.startAngle = startAngle;
     this.endAngle = endAngle;
     this.radius = radius;
+    this.startBound = new Bound(this.position, this.position.add(
+                               new V(this.radius * Math.cos(this.startAngle),
+                                     this.radius * Math.sin(this.startAngle))));
+    this.endBound = new Bound(this.position, this.position.add(
+                             new V(this.radius * Math.cos(this.endAngle),
+                                   this.radius * Math.sin(this.endAngle))));
     this.shieldRadius = shieldRadius;
     this.shieldStartAngle = shieldStartAngle;
     this.shieldEndAngle = shieldEndAngle;
     this.health = 1;
 }
 
-
-// TODO: Implement handling for sides of nodes.
-
-
 Player.prototype.collisionPossible = function (x, y, size) {
     let radius = size / 2;
-    let center = { x: x + radius, y: y + radius };
-    let v = util.vect.sub(center, this.position);
-    let dist = util.vect.mag(v);
-    let angle = util.vect.angle(v);
-    let edge_dist = radius / Math.max(Math.abs(Math.cos(angle)),
-                                      Math.abs(Math.sin(angle)));
+    let center = new V(x + radius, y + radius);
+    let v = center.sub(this.position);
+    let edge_dist = radius / Math.max(Math.abs(Math.cos(v.angle)),
+                                      Math.abs(Math.sin(v.angle)));
 
-    if (dist < this.shieldRadius + edge_dist + 1 &&
-        util.angle.between(this.startAngle, angle, this.endAngle)) {
+    if (v.mag < this.shieldRadius + edge_dist + 1 &&
+        util.angle.between(this.startAngle, v.angle, this.endAngle)) {
+        return true;
+    }
+
+    if (this.startBound.collisionPossible(x, y, size) ||
+        this.endBound.collisionPossible(x, y, size)) {
         return true;
     }
     
@@ -224,29 +226,32 @@ Player.prototype.collisionPossible = function (x, y, size) {
 };
 
 Player.prototype.collisionHandler = function (ball) {
-    let v = util.vect.sub(ball.position, this.position);
-    let v_magsq = util.vect.magsq(v);
-    let v_angle = util.vect.angle(v);
-    let normal_velocity = -util.vect.dot(v, ball.velocity);
+    let v = ball.position.sub(this.position);
+    let normal_velocity = -v.dot( ball.velocity);
 
     if (normal_velocity < 0) {
         return false;
     }
 
-    if (v_magsq < Math.pow(this.shieldRadius + ball.radius, 2) + 1 &&
-        util.angle.between(this.shieldStartAngle, v_angle,
+    if (v.magsq < Math.pow(this.shieldRadius + ball.radius, 2) + 1 &&
+        util.angle.between(this.shieldStartAngle, v.angle,
                            this.shieldEndAngle)) {
-        ball.velocity = util.vect.reflect(ball.velocity, v);
-        console.log("shield");
+        ball.velocity = ball.velocity.reflect(v);
+        
         return true;
     }
 
-    if (v_magsq < Math.pow(this.radius + ball.radius, 2) + 1 &&
-        util.angle.between(this.startAngle, v_angle, this.endAngle)) {
-        ball.velocity = util.vect.reflect(ball.velocity, v);
+    if (v.magsq < Math.pow(this.radius + ball.radius, 2) + 1 &&
+        util.angle.between(this.startAngle, v.angle, this.endAngle)) {
+        ball.velocity = ball.velocity.reflect(v);
         this.health -= this.health < this.damageRate ? this.health :
                                                        this.damageRate;
-        console.log("node");
+        
+        return true;
+    }
+
+    if (this.startBound.collisionHandler(ball) ||
+        this.endBound.collisionHandler(ball)) {
         return true;
     }
 
@@ -296,12 +301,10 @@ Player.prototype.redrawShield = function (ctx) {
 };
 
 
-function Bound(a_x, a_y, b_x, b_y) {
-    this.a = { x: a_x, y: a_y };
-    this.b = { x: b_x, y: b_y };
-    this.direction = util.vect.norm(util.vect.sub(this.b, this.a));
-    this.normal = util.vect.cw90deg(this.direction);
-}
+function Bound(a, b) {
+    L.call(this, a, b);
+};
+Bound.prototype = new L();
 
 Bound.prototype.collisionPossible = function (x, y, size) {
     // Set horizontal and vertical lines of the box.
@@ -330,15 +333,12 @@ Bound.prototype.collisionPossible = function (x, y, size) {
     let e_y = this.a.y + (this.direction.y * e_p);
     let s_x = this.a.x + (this.direction.x * s_p);
     
-    // Calculate maximum magnitude of direction vector.
-    let max_p = util.vect.mag(util.vect.sub(this.b, this.a));
-
     // Bounds passes through the box if a projection less than max magnitude 
     // lies between the bounds defined by the perpendicular lines.
-    if ((n_y <= w_y && w_y <= s_y && 0 < w_p && w_p < max_p) ||
-        (w_x <= n_x && n_x <= e_x && 0 < n_p && n_p < max_p) ||
-        (n_y <= e_y && e_y <= s_y && 0 < e_p && e_p < max_p) ||
-        (w_x <= s_x && s_x <= e_x && 0 < s_p && s_p < max_p)) {
+    if ((n_y <= w_y && w_y <= s_y && 0 < w_p && w_p < 1) ||
+        (w_x <= n_x && n_x <= e_x && 0 < n_p && n_p < 1) ||
+        (n_y <= e_y && e_y <= s_y && 0 < e_p && e_p < 1) ||
+        (w_x <= s_x && s_x <= e_x && 0 < s_p && s_p < 1)) {
         return true;
     }
 
@@ -346,14 +346,16 @@ Bound.prototype.collisionPossible = function (x, y, size) {
 };
 
 Bound.prototype.collisionHandler = function (ball) {
-    let v = util.vect.sub(ball.position, this.a);
-    let normal_position = util.vect.dot(v, this.normal);
-    let normal_velocity = util.vect.dot(ball.velocity, this.normal);
+    let v = ball.position.sub(this.a);
+    let pos_normal = v.dot(this.normal);
+    let pos_direction = v.dot(this.direction.norm);
+    let vel_normal = ball.velocity.dot(this.normal);
 
-    if (Math.abs(normal_position) < ball.radius + 1 &&
-        Math.sign(normal_position) != Math.sign(normal_velocity)) {
-        ball.velocity = util.vect.reflect(ball.velocity, this.normal);
-        console.log("bound");
+    if (Math.abs(pos_normal) < ball.radius + 1 &&
+        Math.sign(pos_normal) != Math.sign(vel_normal) &&
+        pos_direction <= this.direction.mag) {
+        ball.velocity = ball.velocity.reflect(this.normal);
+        
         return true;
     }
 
@@ -378,6 +380,93 @@ Bound.prototype.redraw = function (ctx) {
 };
 
 
+function dProps(o) {
+    o.dPropsCache = {};
+
+    for (let f in o.constructor.dProps) {
+        Object.defineProperty(o, f,
+            (function (dProp) {
+                return {
+                    get: function () {
+                        if (!(dProp in this.dPropsCache)) {
+                            this.dPropsCache[dProp] =
+                                this.constructor.dProps[dProp](this);
+                        }
+
+                        return this.dPropsCache[dProp];
+                    }
+                };
+            })(f)
+        );
+    }
+
+    return o;
+}
+
+
+function V(x, y) {
+    this.x = x;
+    this.y = y;
+
+    dProps(this);
+}
+
+V.dProps = {
+    angle: function (v) {
+        let a = Math.atan2(v.y, v.x);
+        return a < 0 ? TAU + a : a;
+    },
+    magsq: function (v) {
+        return Math.pow(v.x, 2) + Math.pow(v.y, 2);
+    },
+    mag: function (v) {
+        return Math.sqrt(v.magsq);
+    },
+    norm: function (v) {
+        return new V(v.x / v.mag, v.y / v.mag);
+    },
+    cw90deg: function (v) {
+        return new V(-v.y, v.x);
+    }
+};
+
+V.prototype.dot = function (v) {
+    return (this.x * v.x) + (this.y * v.y);
+};
+
+V.prototype.add = function (v) {
+    return new V(this.x + v.x, this.y + v.y);
+};
+
+V.prototype.sub = function (v) {
+    return new V(this.x - v.x, this.y - v.y);
+};
+
+V.prototype.reflect = function (v) {
+    let n = this.dot(v.norm);
+    let p = this.dot(v.norm.cw90deg);
+    return new V((p * v.norm.cw90deg.x) - (n * v.norm.x),
+                 (p * v.norm.cw90deg.y) - (n * v.norm.y));
+};
+
+
+function L(a, b) {
+    this.a = a;
+    this.b = b;
+
+    dProps(this);
+}
+
+L.dProps = {
+    direction: function (l) {
+        return l.b.sub(l.a);
+    },
+    normal: function (l) {
+        return l.direction.norm.cw90deg;
+    }
+};
+
+
 var util = {
     angle: {
         between: function (start, a, end) {
@@ -388,38 +477,6 @@ var util = {
             } else {
                 return a < end;
             }
-        }
-    },
-    vect: {
-        angle: function (v) {
-            let a = Math.atan2(v.y, v.x);
-            return a < 0 ? TAU + a : a;
-        },
-        magsq: function (v) {
-            return Math.pow(v.x, 2) + Math.pow(v.y, 2);
-        },
-        mag: function (v) {
-            return Math.sqrt(util.vect.magsq(v));
-        },
-        norm: function (v) {
-            let mag = util.vect.mag(v);
-            return { x: v.x / mag, y: v.y / mag };
-        },
-        dot: function (v, w) {
-            return (v.x * w.x) + (v.y * w.y);
-        },
-        reflect: function (v, n) {
-            n = util.vect.norm(n);
-            let p = util.vect.cw90deg(n);
-            let N = util.vect.dot(v, n);
-            let P = util.vect.dot(v, p);
-            return { x: (P * p.x) - (N * n.x), y: (P * p.y) - (N * n.y) };
-        },
-        sub: function (v, w) {
-            return { x: v.x - w.x, y: v.y - w.y };
-        },
-        cw90deg: function (v) {
-            return { x: -v.y, y: v.x };
         }
     }
 };
