@@ -1,5 +1,20 @@
 var animFrame;
 
+var config = { collisionCellSize: 20,
+               nodeRadius: 40,
+               shieldRadius: 45,
+               shieldHalfWidth: Math.PI / 24,
+               shieldStyle: "rgb(0, 0, 255)",
+               shieldDepth: 3,
+               bgStyle: "rgb(255, 255, 255)",
+               boundStyle: "rgb(0, 0, 0)",
+               boundWidth: 1,
+               nodeStyle: "rgb(0, 0, 0)",
+               playerStyle: "rgb(128, 0, 128)",
+               ballStyle: "rgb(255, 0, 0)",
+               ballRadius: 10 };
+
+
 window.onload = function () {
     let canvas = document.getElementById("canvas");
     let menu_wrapper = document.getElementById("menu-wrapper");
@@ -10,10 +25,11 @@ window.onload = function () {
         shape = (shape === NaN || shape < 3) ? 6 : shape;
 
         let viewport = new Viewport(canvas);
-        let game = new SinglePlayerGame(shape, viewport);
+//        let game = new SinglePlayerGame(shape, viewport);
+        let game = new SPLatticeGame(viewport);
 
         let resizeListener = bindResizeListener(game);
-        let controlListener = bindControlListener(game.players[0]);
+        let controlListener = bindControlListener(game.players[game.player]);
         bindEscKeyListener(game, menu_wrapper, resizeListener,
                            controlListener);
 
@@ -77,12 +93,12 @@ function bindResizeListener(game) {
     return listener;
 }
 
-function bindControlListener(player, ctx) {
+function bindControlListener(player) {
     let listener = function (e) {
         if (e.keyCode === 37) { // Left
-            player.moveShield(-0.1, ctx);
+            player.moveShield(-0.1);
         } else if (e.keyCode === 39) { // Right
-            player.moveShield(0.1, ctx);
+            player.moveShield(0.1);
         }
     };
 
@@ -132,9 +148,65 @@ function buildAI(player, ball, max_adjust) {
 };
 
 
+function SPLatticeGame(viewport) {
+    this.viewport = viewport;
+    
+    let spacing = 130;
+    let xDensity = Math.floor(viewport.canvas.width / spacing);
+    let yDensity = Math.floor(viewport.canvas.height / spacing);
+
+    this.players = new Array(xDensity * yDensity);
+    this.bounds = new Array(4);
+    this.ball = new Ball(new V(100, 100), this.viewport, config.ballRadius);
+    this.ais = new Array(this.players.length - 1);
+    this.player = Math.floor((xDensity * yDensity) / 2);
+
+    for (let i = 0; i < this.players.length; i++) {
+        let x = ((i % xDensity) * spacing) + (1.5 * config.nodeRadius);
+        let y = (Math.floor(i / xDensity) * spacing) +
+                    (1.5 * config.nodeRadius);
+        let style = i === this.player ? config.playerStyle : config.nodeStyle;
+
+        if ((Math.floor(i / xDensity) % 2) == 1) {
+            x += Math.floor(spacing / 2);
+        }
+        
+        this.players[i] = new Player(new V(x, y), this.viewport, 0, TAU, 
+                                     config.nodeRadius, config.shieldRadius,
+                                     config.shieldHalfWidth, style);
+    }
+
+    this.bounds[0] = new Bound(new V(0, 0),
+                               new V(this.viewport.canvas.width, 0),
+                               this.viewport);
+    this.bounds[1] = new Bound(this.bounds[0].b,
+                               new V(this.viewport.canvas.width,
+                                     this.viewport.canvas.height),
+                               this.viewport);
+    this.bounds[2] = new Bound(this.bounds[1].b,
+                               new V(0, this.viewport.canvas.height),
+                               this.viewport);
+    this.bounds[3] = new Bound(this.bounds[2].b, this.bounds[0].a,
+                               this.viewport);
+
+    for (let i = 0; i < this.players.length; i++) {
+        if (i == this.player) {
+            continue;
+        }
+
+        this.ais.push(setInterval(
+                            buildAI(this.players[i], this.ball, 0.04), 100));
+    }
+
+    Game.setCollisionMap(this);
+}
+SPLatticeGame.prototype = Object.create(Game.prototype);
+
+
 function SinglePlayerGame(shape, viewport) {
     this.viewport = viewport;
     this.players = new Array(shape);
+    this.player = 0;
     this.bounds = new Array(shape);
     this.ball = new Ball(new V(this.viewport.center.x, this.viewport.center.y),
                          this.viewport, config.ballRadius);
@@ -167,45 +239,24 @@ function SinglePlayerGame(shape, viewport) {
                                    this.viewport);
     }
 
-    for (let i = 0; i < this.collisionMap.length; i++) {
-        this.collisionMap[i] = new Array(Math.ceil(this.viewport.canvas.height /
-                                                   config.collisionCellSize));
-
-        for (let j = 0; j < this.collisionMap[i].length; j++) {
-            this.collisionMap[i][j] = new Array();
-
-            let x = config.collisionCellSize * i;
-            let y = config.collisionCellSize * j;
-
-            for (let k = 0; k < this.players.length; k++) {
-                if (this.players[k]
-                        .collisionPossible(x, y, config.collisionCellSize)) {
-                    this.collisionMap[i][j].push(this.players[k]);
-                }
-            }
-
-            for (let k = 0; k < this.bounds.length; k++) {
-                if (this.bounds[k]
-                        .collisionPossible(x, y, config.collisionCellSize)) {
-                    this.collisionMap[i][j].push(this.bounds[k]);
-                }
-            }
-        }
-    }
         
     for (let i = 1; i < this.players.length; i++) {
         this.ais[i - 1] = setInterval(
                             buildAI(this.players[i], this.ball, 0.04), 100);
     }
 }
+SinglePlayerGame.prototype = Object.create(Game.prototype);
 
-SinglePlayerGame.prototype.stopAIs = function () {
+
+function Game() {}
+
+Game.prototype.stopAIs = function () {
     for (let i = 0; i < this.ais.length; i++) {
         clearInterval(this.ais[i]);
     }
 };
 
-SinglePlayerGame.prototype.detectCollision = function () {
+Game.prototype.detectCollision = function () {
     let idx_x = Math.floor(this.ball.position.x / config.collisionCellSize);
     let idx_y = Math.floor(this.ball.position.y / config.collisionCellSize);
 
@@ -215,7 +266,7 @@ SinglePlayerGame.prototype.detectCollision = function () {
          i <= (idx_x + 1 < this.collisionMap.length ? 1 : 0);
          i++) {
         for (let j = (0 < idx_y ? -1 : 0);
-             j <= (idx_y + 1 < this.collisionMap[idx_x + 1].length ? 1 : 0);
+             j <= (idx_y + 1 < this.collisionMap[idx_x + i].length ? 1 : 0);
              j++) {
             let cell = this.collisionMap[idx_x + i][idx_y + j];
         
@@ -234,12 +285,16 @@ SinglePlayerGame.prototype.detectCollision = function () {
     return false;
 };
 
-SinglePlayerGame.prototype.isGameFinished = function () {
-    if (this.players[0].health == 0) {
+Game.prototype.isGameFinished = function () {
+    if (this.players[this.player].health == 0) {
         return "CPU wins";
     }
 
-    for (let i = 1; i < this.players.length; i++) {
+    for (let i = 0; i < this.players.length; i++) {
+        if (i === this.player) {
+            continue;
+        }
+
         if (this.players[i].health > 0) {
             return false;
         }
@@ -248,7 +303,7 @@ SinglePlayerGame.prototype.isGameFinished = function () {
     return "You win";
 };
 
-SinglePlayerGame.prototype.redrawAll = function () {
+Game.prototype.redrawAll = function () {
     for (let i = 0; i < this.players.length; i++) {
         this.players[i].redraw();
     }
@@ -258,7 +313,7 @@ SinglePlayerGame.prototype.redrawAll = function () {
     }
 };
 
-SinglePlayerGame.prototype.redrawActive = function () {
+Game.prototype.redrawActive = function () {
     let idx_x = Math.floor(this.ball.position.x / config.collisionCellSize);
     let idx_y = Math.floor(this.ball.position.y / config.collisionCellSize);
 
@@ -268,7 +323,7 @@ SinglePlayerGame.prototype.redrawActive = function () {
          i <= (idx_x + 1 < this.collisionMap.length ? 1 : 0);
          i++) {
         for (let j = (0 < idx_y ? -1 : 0);
-             j <= (idx_y + 1 < this.collisionMap[idx_x + 1].length ? 1 : 0);
+             j <= (idx_y + 1 < this.collisionMap[idx_x + i].length ? 1 : 0);
              j++) {
             let cell = this.collisionMap[idx_x + i][idx_y + j];
         
@@ -283,22 +338,36 @@ SinglePlayerGame.prototype.redrawActive = function () {
     }
 };
 
+Game.setCollisionMap = function (game) {
+    game.collisionMap = new Array(Math.ceil(game.viewport.canvas.width / 
+                                            config.collisionCellSize));
 
-var config = { collisionCellSize: 20,
-               nodeRadius: 40,
-               shieldRadius: 45,
-               shieldHalfWidth: Math.PI / 24,
-               shieldStyle: "rgb(0, 0, 255)",
-               shieldDepth: 3,
-               bgStyle: "rgb(255, 255, 255)",
-               boundStyle: "rgb(0, 0, 0)",
-               boundWidth: 1,
-               nodeStyle: "rgb(0, 0, 0)",
-               ballStyle: "rgb(255, 0, 0)",
-               ballRadius: 10 };
+    for (let i = 0; i < game.collisionMap.length; i++) {
+        game.collisionMap[i] = new Array(Math.ceil(game.viewport.canvas.height /
+                                                   config.collisionCellSize));
 
+        for (let j = 0; j < game.collisionMap[i].length; j++) {
+            game.collisionMap[i][j] = new Array();
 
-const TAU = 2 * Math.PI;
+            let x = config.collisionCellSize * i;
+            let y = config.collisionCellSize * j;
+
+            for (let k = 0; k < game.players.length; k++) {
+                if (game.players[k]
+                        .collisionPossible(x, y, config.collisionCellSize)) {
+                    game.collisionMap[i][j].push(game.players[k]);
+                }
+            }
+
+            for (let k = 0; k < game.bounds.length; k++) {
+                if (game.bounds[k]
+                        .collisionPossible(x, y, config.collisionCellSize)) {
+                    game.collisionMap[i][j].push(game.bounds[k]);
+                }
+            }
+        }
+    }
+};
 
 
 function Viewport(canvas) {
@@ -388,24 +457,30 @@ Ball.prototype.redraw = function () {
 
 
 function Player(position, viewport, startAngle, angleRange, radius,
-                shieldRadius, shieldAngle, shieldHalfWidth) {
+                shieldRadius, shieldHalfWidth, style) {
     this.position = position;
     this.viewport = viewport;
     this.startAngle = startAngle;
     this.angleRange = angleRange;
+    this.fullCircle = this.angleRange + 0.01 > TAU ? true : false;
     this.endAngle = this.startAngle + this.angleRange;
     this.radius = radius;
-    this.startBound = new Bound(this.position, this.position.add(
+    
+    if (!this.fullCircle) {
+        this.startBound = new Bound(this.position, this.position.add(
                                new V(this.radius * Math.cos(this.startAngle),
                                      this.radius * Math.sin(this.startAngle))));
-    this.endBound = new Bound(this.position, this.position.add(
+        this.endBound = new Bound(this.position, this.position.add(
                              new V(this.radius * Math.cos(this.endAngle),
                                    this.radius * Math.sin(this.endAngle))));
+    }
+
     this.shieldRadius = shieldRadius;
-    this.shieldAngle = shieldAngle;
+    this.shieldAngle = (this.startAngle + this.endAngle) / 2;
     this.shieldHalfWidth = shieldHalfWidth;
     this.shieldStartAngle = this.shieldAngle - this.shieldHalfWidth;
     this.shieldEndAngle = this.shieldAngle + this.shieldHalfWidth;
+    this.style = style;
     this.health = 1;
     this.damageRate = 0.1;
 }
@@ -413,10 +488,11 @@ function Player(position, viewport, startAngle, angleRange, radius,
 Player.prototype.moveShield = function (a) {
     this.clearShield();
 
-    if (util.angle.between(this.startAngle + 0.02, this.shieldStartAngle + a,
+    if (this.fullCircle ||
+        (util.angle.between(this.startAngle + 0.02, this.shieldStartAngle + a,
             this.endAngle - 0.02) &&
-        util.angle.between(this.startAngle + 0.02, this.shieldEndAngle + a,
-            this.endAngle - 0.02)) {
+         util.angle.between(this.startAngle + 0.02, this.shieldEndAngle + a,
+            this.endAngle - 0.02))) {
         this.shieldAngle += a;
         this.shieldStartAngle += a;
         this.shieldEndAngle += a;
@@ -433,12 +509,15 @@ Player.prototype.collisionPossible = function (x, y, size) {
                                       Math.abs(Math.sin(v.angle)));
 
     if (v.mag < this.shieldRadius + edge_dist + 1 &&
-        util.angle.between(this.startAngle, v.angle, this.endAngle)) {
+        ((!this.fullCircle &&
+          util.angle.between(this.startAngle, v.angle, this.endAngle)) ||
+         this.fullCircle)) {
         return true;
     }
 
-    if (this.startBound.collisionPossible(x, y, size) ||
-        this.endBound.collisionPossible(x, y, size)) {
+    if (!this.fullCircle &&
+        (this.startBound.collisionPossible(x, y, size) ||
+         this.endBound.collisionPossible(x, y, size))) {
         return true;
     }
     
@@ -463,14 +542,17 @@ Player.prototype.collisionHandler = function (ball) {
     }
 
     if (v.magsq < Math.pow(this.radius + ball.radius, 2) + 1 &&
-        util.angle.between(this.startAngle, v.angle, this.endAngle)) {
+        ((!this.fullCircle &&
+          util.angle.between(this.startAngle, v.angle, this.endAngle)) ||
+         this.fullCircle)) {
         ball.velocity = ball.velocity.reflect(v);
         this.takeDamage();
         return true;
     }
 
-    if (this.startBound.collisionHandler(ball) ||
-        this.endBound.collisionHandler(ball)) {
+    if (!this.fullCircle && 
+        (this.startBound.collisionHandler(ball) ||
+         this.endBound.collisionHandler(ball))) {
         this.takeDamage();
         return true;
     }
@@ -493,27 +575,27 @@ Player.prototype.redrawNode = function () {
 
     if (-this.radius < x && x < this.viewport.canvas.width + this.radius &&
         -this.radius < y && y < this.viewport.canvas.height + this.radius) {
-        this.viewport.ctx.beginPath();
         this.viewport.ctx.moveTo(x, y);
+        this.viewport.ctx.beginPath();
         this.viewport.ctx.arc(x, y, this.radius + 1,
                 this.startAngle, this.endAngle, false);
         this.viewport.ctx.closePath();
         this.viewport.ctx.fillStyle = config.bgStyle;
         this.viewport.ctx.fill();
-        this.viewport.ctx.beginPath();
         this.viewport.ctx.moveTo(x, y);
+        this.viewport.ctx.beginPath();
         this.viewport.ctx.arc(x, y, this.radius,
                 this.startAngle, this.endAngle, false);
         this.viewport.ctx.closePath();
-        this.viewport.ctx.strokeStyle = config.boundStyle;
+        this.viewport.ctx.strokeStyle = this.style;
         this.viewport.ctx.lineWidth = config.boundWidth;
         this.viewport.ctx.stroke();
-        this.viewport.ctx.beginPath();
         this.viewport.ctx.moveTo(x, y);
+        this.viewport.ctx.beginPath();
         this.viewport.ctx.arc(x, y, this.radius * this.health,
                 this.startAngle, this.endAngle, false);
         this.viewport.ctx.closePath();
-        this.viewport.ctx.fillStyle = config.nodeStyle;
+        this.viewport.ctx.fillStyle = this.style;
         this.viewport.ctx.fill();
 
         return true;
@@ -578,7 +660,7 @@ function Bound(a, b, viewport) {
 
     this.viewport = viewport;
 };
-Bound.prototype = new L();
+Bound.prototype = Object.create(L.prototype);
 
 Bound.prototype.collisionPossible = function (x, y, size) {
     // Set horizontal and vertical lines of the box.
@@ -745,6 +827,8 @@ L.dProps = {
     }
 };
 
+
+const TAU = 2 * Math.PI;
 
 var util = {
     angle: {
