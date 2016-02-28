@@ -10,7 +10,6 @@ window.onload = function () {
         shape = (shape === NaN || shape < 3) ? 6 : shape;
 
         let viewport = new Viewport(canvas);
-        
         let game = new SinglePlayerGame(shape, viewport);
 
         let resizeListener = bindResizeListener(game);
@@ -18,9 +17,6 @@ window.onload = function () {
         bindEscKeyListener(game, menu_wrapper, resizeListener,
                            controlListener);
 
-        for (let i = 1; i < game.players.length; i++) {
-            setInterval(buildAI(game.players[i], game.ball, 0.04), 100);
-        }            
 
         let before = performance.now();
 
@@ -49,8 +45,8 @@ window.onload = function () {
                 game.viewport.ctx.font = "48px sans";
                 let metrics = game.viewport.ctx.measureText(msg);
                 game.viewport.ctx.fillText(msg,
-                                (game.viewport.canvas.width - metrics.width) / 2,
-                                game.viewport.canvas.height / 2);
+                               (game.viewport.canvas.width - metrics.width) / 2,
+                               game.viewport.canvas.height / 2);
             } else { 
                 before = timestamp;
                 animFrame = requestAnimationFrame(animate);
@@ -100,6 +96,7 @@ function bindEscKeyListener(game, menu_wrapper, resizeListener,
     let listener = function (e) {
         if (e.keyCode === 27) {
             cancelAnimationFrame(animFrame);
+            game.stopAIs();
             menu_wrapper.style.display = "table";
             window.removeEventListener("keyup", listener);
             window.removeEventListener("resize", resizeListener);
@@ -114,18 +111,22 @@ function bindEscKeyListener(game, menu_wrapper, resizeListener,
 function buildAI(player, ball, max_adjust) {
     return function () {
         let a = ball.position.sub(player.position).angle;
+        let shieldCenter = player.shieldAngle;
 
-        if (player.endAngle < player.startAngle && a < player.startAngle) {
-            a += TAU;
-        }
-        
-        let startDiff = (a - player.shieldStartAngle) % TAU;
-        let endDiff = (player.shieldEndAngle - a) % TAU;
-
-        if (startDiff < 0) {
-            player.moveShield(-Math.min(max_adjust, -startDiff));
-        } else if (endDiff < 0) {
-            player.moveShield(Math.min(max_adjust, -endDiff));
+        if (a < shieldCenter) {
+            if (shieldCenter - a < TAU / 2) {
+                player.moveShield(-Math.min(max_adjust, shieldCenter - a));
+            } else {
+                player.moveShield(Math.min(max_adjust,
+                                            a + TAU - shieldCenter));
+            } 
+        } else {
+            if (a - shieldCenter < TAU / 2) {
+                player.moveShield(Math.min(max_adjust, a - shieldCenter));
+            } else {
+                player.moveShield(-Math.min(max_adjust,
+                                           shieldCenter + TAU - a));
+            } 
         }
     };
 };
@@ -139,6 +140,7 @@ function SinglePlayerGame(shape, viewport) {
                          this.viewport, config.ballRadius);
     this.collisionMap = new Array(Math.ceil(this.viewport.canvas.width / 
                                             config.collisionCellSize));
+    this.ais = new Array(shape - 1);
     
     let radius = Math.min(this.viewport.center.x, this.viewport.center.y) - 10;
     let angle = TAU / shape;
@@ -154,10 +156,9 @@ function SinglePlayerGame(shape, viewport) {
         let shieldCenter = (startAngle + endAngle) / 2;
 
         this.players[i] = new Player(position, this.viewport, 
-                                 startAngle % TAU, endAngle % TAU,
+                                 startAngle, (TAU / 2) - angle,
                                  config.nodeRadius, config.shieldRadius,
-                                 (shieldCenter - config.shieldHalfWidth) % TAU,
-                                 (shieldCenter + config.shieldHalfWidth) % TAU);
+                                 shieldCenter, config.shieldHalfWidth);
     }
 
     for (let i = 0; i < shape; i++) {
@@ -191,7 +192,18 @@ function SinglePlayerGame(shape, viewport) {
             }
         }
     }
+        
+    for (let i = 1; i < this.players.length; i++) {
+        this.ais[i - 1] = setInterval(
+                            buildAI(this.players[i], this.ball, 0.04), 100);
+    }
 }
+
+SinglePlayerGame.prototype.stopAIs = function () {
+    for (let i = 0; i < this.ais.length; i++) {
+        clearInterval(this.ais[i]);
+    }
+};
 
 SinglePlayerGame.prototype.detectCollision = function () {
     let idx_x = Math.floor(this.ball.position.x / config.collisionCellSize);
@@ -375,12 +387,13 @@ Ball.prototype.redraw = function () {
 };
 
 
-function Player(position, viewport, startAngle, endAngle, radius,
-                shieldRadius, shieldStartAngle, shieldEndAngle) {
+function Player(position, viewport, startAngle, angleRange, radius,
+                shieldRadius, shieldAngle, shieldHalfWidth) {
     this.position = position;
     this.viewport = viewport;
     this.startAngle = startAngle;
-    this.endAngle = endAngle;
+    this.angleRange = angleRange;
+    this.endAngle = this.startAngle + this.angleRange;
     this.radius = radius;
     this.startBound = new Bound(this.position, this.position.add(
                                new V(this.radius * Math.cos(this.startAngle),
@@ -389,22 +402,27 @@ function Player(position, viewport, startAngle, endAngle, radius,
                              new V(this.radius * Math.cos(this.endAngle),
                                    this.radius * Math.sin(this.endAngle))));
     this.shieldRadius = shieldRadius;
-    this.shieldStartAngle = shieldStartAngle;
-    this.shieldEndAngle = shieldEndAngle;
+    this.shieldAngle = shieldAngle;
+    this.shieldHalfWidth = shieldHalfWidth;
+    this.shieldStartAngle = this.shieldAngle - this.shieldHalfWidth;
+    this.shieldEndAngle = this.shieldAngle + this.shieldHalfWidth;
     this.health = 1;
     this.damageRate = 0.1;
 }
 
-Player.prototype.moveShield = function (a, ctx) {
-    this.clearShield(ctx);
+Player.prototype.moveShield = function (a) {
+    this.clearShield();
 
-    if (this.startAngle + 0.02 < this.shieldStartAngle + a &&
-        this.shieldEndAngle + a < this.endAngle - 0.02) {
+    if (util.angle.between(this.startAngle + 0.02, this.shieldStartAngle + a,
+            this.endAngle - 0.02) &&
+        util.angle.between(this.startAngle + 0.02, this.shieldEndAngle + a,
+            this.endAngle - 0.02)) {
+        this.shieldAngle += a;
         this.shieldStartAngle += a;
         this.shieldEndAngle += a;
     }
 
-    this.redrawShield(ctx);
+    this.redrawShield();
 };
 
 Player.prototype.collisionPossible = function (x, y, size) {
@@ -731,6 +749,10 @@ L.dProps = {
 var util = {
     angle: {
         between: function (start, a, end) {
+            start = start % TAU;
+            a = a % TAU;
+            end = end % TAU;
+
             if (start < end) {
                 return (start < a && a < end);
             } else if (start < a) {
