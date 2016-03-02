@@ -9,29 +9,35 @@
 <div id="menu">
 <h1>latticeball</h1>
 <div class="opt">
-<label for="sides">Sides</label><input type="number" id="sides" value="6"
-min="2"></input>
+<label for="game-type">Game type</label>
+<select id="game-type">
+<option value="polygon">Polygon</option>
+<option value="lattice">Lattice</option>
+</select>
+</div>
+<div id="opts">
 </div>
 <input type="submit" id="play" value="Play"></input>
 </div>
 </div>
 <canvas id="canvas"></canvas>
 <style>
-* { margin: 0; }
+* { margin: 0; padding: 0; }
 canvas { position: absolute; }
 #ball { z-index: 2; }
 #bg { z-index: 1; }
-#menu-wrapper { display: table; position: absolute; z-index: 3; left: 50%;
-                top: 50%; width: 300px; height: 200px; margin-top: -100px;
-                margin-left: -150px; text-align: center; background: #fff;
-                border: 5px solid #ccc; }
-#menu { display: table-cell; vertical-align: middle; }
-h1 { margin-bottom: 20px; }
-.opt { display: inline-block; width: 200px; }
-label { width: 100px; text-align: left; }
-input { width: 60px; }
-label, input { display: inline-block; }
-#play { width: 100px; margin-top: 20px; }
+#menu-wrapper { position: absolute; z-index: 3; left: 50%; top: 50%; 
+                width: 300px; min-height: 200px; 
+                transform: translate(-50%, -50%); background: #fff;
+                border: 5px solid #ccc; padding: 20px; }
+#menu { display: flex; flex-direction: column; justify-content: center;
+        align-center: middle; }
+h1 { margin-bottom: 20px; text-align: center; }
+#opts { margin-top: 20px; }
+.opt { display: flex; margin: 0 20px 0 20px; justify-content: space-between; }
+label { text-align: left; }
+input, select { max-width: 120px; }
+#play { width: 100px; margin: 20px auto 0px auto; }
 </style>
 </body>
 </html>
