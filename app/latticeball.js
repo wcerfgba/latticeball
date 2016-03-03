@@ -17,8 +17,16 @@ var config = { collisionCellSize: 20,
                ballRadius: 10,
                spacing: 100 };
 
+module.exports = {
+    init: function () {
+        document.addEventListener("DOMContentLoaded", function (event) {
+            run();
+        });
+    }
+};
 
-window.onload = function () {
+function run () {
+    console.log("yo");
     var canvas = document.getElementById("canvas");
     var menu_wrapper = document.getElementById("menu-wrapper");
     var gameTypeSelect = document.getElementById("game-type");
@@ -82,7 +90,7 @@ window.onload = function () {
 
         animFrame = requestAnimationFrame(animate);
     });
-};
+}
 
 
 function buildGameTypeHandler(gameTypeSelect, optsDiv, optsEls, gameSettings) {
