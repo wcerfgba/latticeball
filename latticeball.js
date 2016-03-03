@@ -1,3 +1,5 @@
+"use strict";
+
 var animFrame;
 
 var config = { collisionCellSize: 20,
@@ -105,7 +107,7 @@ function buildGameTypeHandler(gameTypeSelect, optsDiv, optsEls, gameSettings) {
 }
 
 function populateGameSettings(gameSettings) {
-    for (let p in config) {
+    for (var p in config) {
         gameSettings[p] = config[p];
     }
 
@@ -156,19 +158,21 @@ function buildOptionsHTMLElements() {
 
     var elements = {};
 
-    for (let def of elDefs) {
+    for (var i = 0; i < elDefs.length; i++) {
+        var def = elDefs[i];
         var id = def[1].id;
         var element = document.createElement(def[0]);
 
         switch (def[0]) {
             case "input":
-                for (let p in def[1]) {
+                for (var p in def[1]) {
                     element.setAttribute(p, def[1][p]);
                 }
                 break;
             case "select":
                 element.setAttribute("id", def[1].id);
-                for (let o of def[1].options) {
+                for (var j = 0; j < def[1].options.length; j++) {
+                    var o = def[1].options[j];
                     var opt = document.createElement("option");
                     opt.value = o[0];
                     opt.text = o[1];
@@ -281,7 +285,7 @@ function SPLatticeGame(viewport, settings) {
     this.player = Math.floor((xDensity * yDensity) / 2);
     this.collisionCellSize = settings.collisionCellSize;
 
-    for (let i = 0; i < this.players.length; i++) {
+    for (var i = 0; i < this.players.length; i++) {
         var x = ((i % xDensity) * settings.spacing) + (1.5 * config.nodeRadius);
         var y = (Math.floor(i / xDensity) * settings.spacing) +
                     (1.5 * config.nodeRadius);
@@ -311,7 +315,7 @@ function SPLatticeGame(viewport, settings) {
     this.bounds[3] = new Bound(this.bounds[2].b, this.bounds[0].a,
                                this.viewport);
 
-    for (let i = 0; i < this.players.length; i++) {
+    for (var i = 0; i < this.players.length; i++) {
         if (i == this.player) {
             continue;
         }
@@ -339,7 +343,7 @@ function SPPolygonGame(viewport, settings) {
     var radius = Math.min(this.viewport.center.x, this.viewport.center.y) - 10;
     var angle = TAU / settings.sides;
     
-    for (let i = 0; i < settings.sides; i++) {
+    for (var i = 0; i < settings.sides; i++) {
         var disp_angle = i * angle;
         var position = new V(this.viewport.center.x +
                                 (Math.cos(disp_angle) * radius),
@@ -357,14 +361,14 @@ function SPPolygonGame(viewport, settings) {
                                  settings.shieldHalfWidth, style);
     }
 
-    for (let i = 0; i < settings.sides; i++) {
+    for (var i = 0; i < settings.sides; i++) {
         this.bounds[i] = new Bound(
                               this.players[i].startBound.b,
                               this.players[(i + 1) % settings.sides].endBound.b,
                               this.viewport);
     }
         
-    for (let i = 1; i < this.players.length; i++) {
+    for (var i = 1; i < this.players.length; i++) {
         this.ais[i - 1] = setInterval(
                             buildAI(this.players[i], this.ball, 0.04), 100);
     }
@@ -377,7 +381,7 @@ SPPolygonGame.prototype = Object.create(Game.prototype);
 function Game() {}
 
 Game.prototype.stopAIs = function () {
-    for (let i = 0; i < this.ais.length; i++) {
+    for (var i = 0; i < this.ais.length; i++) {
         clearInterval(this.ais[i]);
     }
 };
@@ -386,23 +390,24 @@ Game.prototype.detectCollision = function () {
     var idx_x = Math.floor(this.ball.position.x / this.collisionCellSize);
     var idx_y = Math.floor(this.ball.position.y / this.collisionCellSize);
 
-    var set = new Set();
+    var set = new TreeSet();
 
-    for (let i = (0 < idx_x ? -1 : 0);
+    for (var i = (0 < idx_x ? -1 : 0);
          i <= (idx_x + 1 < this.collisionMap.length ? 1 : 0);
          i++) {
-        for (let j = (0 < idx_y ? -1 : 0);
+        for (var j = (0 < idx_y ? -1 : 0);
              j <= (idx_y + 1 < this.collisionMap[idx_x + i].length ? 1 : 0);
              j++) {
             var cell = this.collisionMap[idx_x + i][idx_y + j];
         
-            for (let k = 0; k < cell.length; k++) {
+            for (var k = 0; k < cell.length; k++) {
                 set.add(cell[k]);
             }
         }
     }
 
-    for (let o of set) {
+    for (var i = 0; i < set.length; i++) {
+        var o = set[i];
         if (o.collisionHandler(this.ball)) {
             return true;
         }
@@ -417,7 +422,7 @@ Game.prototype.isGameFinished = function () {
         return "CPU wins";
     }
 
-    for (let i = 0; i < this.players.length; i++) {
+    for (var i = 0; i < this.players.length; i++) {
         if (i === this.player) {
             continue;
         }
@@ -431,11 +436,11 @@ Game.prototype.isGameFinished = function () {
 };
 
 Game.prototype.redrawAll = function () {
-    for (let i = 0; i < this.players.length; i++) {
+    for (var i = 0; i < this.players.length; i++) {
         this.players[i].redraw();
     }
     
-    for (let i = 0; i < this.bounds.length; i++) {
+    for (var i = 0; i < this.bounds.length; i++) {
         this.bounds[i].redraw();
     }
 };
@@ -444,23 +449,24 @@ Game.prototype.redrawActive = function () {
     var idx_x = Math.floor(this.ball.position.x / this.collisionCellSize);
     var idx_y = Math.floor(this.ball.position.y / this.collisionCellSize);
 
-    var set = new Set();
+    var set = new TreeSet();
 
-    for (let i = (0 < idx_x ? -1 : 0);
+    for (var i = (0 < idx_x ? -1 : 0);
          i <= (idx_x + 1 < this.collisionMap.length ? 1 : 0);
          i++) {
-        for (let j = (0 < idx_y ? -1 : 0);
+        for (var j = (0 < idx_y ? -1 : 0);
              j <= (idx_y + 1 < this.collisionMap[idx_x + i].length ? 1 : 0);
              j++) {
             var cell = this.collisionMap[idx_x + i][idx_y + j];
         
-            for (let k = 0; k < cell.length; k++) {
+            for (var k = 0; k < cell.length; k++) {
                 set.add(cell[k]);
             }
         }
     }
 
-    for (let o of set) {
+    for (var i = 0; i < set.length; i++) {
+        var o = set[i];
         o.redraw();
     }
 };
@@ -469,24 +475,24 @@ Game.setCollisionMap = function (game) {
     game.collisionMap = new Array(Math.ceil(game.viewport.canvas.width / 
                                             game.collisionCellSize));
 
-    for (let i = 0; i < game.collisionMap.length; i++) {
+    for (var i = 0; i < game.collisionMap.length; i++) {
         game.collisionMap[i] = new Array(Math.ceil(game.viewport.canvas.height /
                                                    game.collisionCellSize));
 
-        for (let j = 0; j < game.collisionMap[i].length; j++) {
+        for (var j = 0; j < game.collisionMap[i].length; j++) {
             game.collisionMap[i][j] = new Array();
 
             var x = game.collisionCellSize * i;
             var y = game.collisionCellSize * j;
 
-            for (let k = 0; k < game.players.length; k++) {
+            for (var k = 0; k < game.players.length; k++) {
                 if (game.players[k]
                         .collisionPossible(x, y, game.collisionCellSize)) {
                     game.collisionMap[i][j].push(game.players[k]);
                 }
             }
 
-            for (let k = 0; k < game.bounds.length; k++) {
+            for (var k = 0; k < game.bounds.length; k++) {
                 if (game.bounds[k]
                         .collisionPossible(x, y, game.collisionCellSize)) {
                     game.collisionMap[i][j].push(game.bounds[k]);
@@ -871,7 +877,7 @@ Bound.prototype.redraw = function () {
 function dProps(o) {
     o.dPropsCache = {};
 
-    for (let f in o.constructor.dProps) {
+    for (var f in o.constructor.dProps) {
         Object.defineProperty(o, f,
             (function (dProp) {
                 return {
@@ -955,7 +961,31 @@ L.dProps = {
 };
 
 
-const TAU = 2 * Math.PI;
+function TreeSet() {
+}
+TreeSet.prototype = Object.create(Array.prototype);
+
+TreeSet.prototype.add = function (o) {
+    var start = 0;
+    var end = this.length;
+    
+    while (start < end) {
+        var i = Math.floor((start + end) / 2);
+
+        if (o <= this[i]) {
+            end = i;
+        } else {
+            start = i + 1;
+        }
+    }
+
+    if (this[start] != o) {
+        this.splice(start, 0, o);
+    }
+};
+
+
+var TAU = 2 * Math.PI;
 
 var util = {
     angle: {
