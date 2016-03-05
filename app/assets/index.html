@@ -3,22 +3,22 @@
 <head>
 <title>latticeball - 0.0.0</title>
 <script src="app.js"></script>
-<script>require("latticeball").init();</script>
+<script>require("main")();</script>
 </head>
 <body>
-<div id="menu-wrapper">
+<div id="menuWrapper">
 <div id="menu">
 <h1>latticeball</h1>
 <div class="opt">
-<label for="game-type">Game type</label>
-<select id="game-type">
+<label for="gameTypeSelect">Game type</label>
+<select id="gameTypeSelect">
 <option value="polygon">Polygon</option>
 <option value="lattice">Lattice</option>
 </select>
 </div>
-<div id="opts">
+<div id="optsDiv">
 </div>
-<input type="submit" id="play" value="Play"></input>
+<input type="submit" id="playSubmit" value="Play"></input>
 </div>
 </div>
 <canvas id="canvas"></canvas>
@@ -27,7 +27,7 @@
 canvas { position: absolute; }
 #ball { z-index: 2; }
 #bg { z-index: 1; }
-#menu-wrapper { position: absolute; z-index: 3; left: 50%; top: 50%; 
+#menuWrapper { position: absolute; z-index: 3; left: 50%; top: 50%; 
                 width: 300px; min-height: 200px; 
                 transform: translate(-50%, -50%); background: #fff;
                 border: 5px solid #ccc; padding: 20px; }
