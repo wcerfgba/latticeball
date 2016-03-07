@@ -25,8 +25,6 @@
 <style>
 * { margin: 0; padding: 0; }
 canvas { position: absolute; }
-#ball { z-index: 2; }
-#bg { z-index: 1; }
 #menuWrapper { position: absolute; z-index: 3; left: 50%; top: 50%; 
                 width: 300px; min-height: 200px; 
                 transform: translate(-50%, -50%); background: #fff;
@@ -34,11 +32,11 @@ canvas { position: absolute; }
 #menu { display: flex; flex-direction: column; justify-content: center;
         align-center: middle; }
 h1 { margin-bottom: 20px; text-align: center; }
-#opts { margin-top: 20px; }
+#optsDiv { margin-top: 20px; }
 .opt { display: flex; margin: 0 20px 0 20px; justify-content: space-between; }
 label { text-align: left; }
 input, select { max-width: 120px; }
-#play { width: 100px; margin: 20px auto 0px auto; }
+#playSubmit { width: 100px; margin: 20px auto 0px auto; }
 </style>
 </body>
 </html>

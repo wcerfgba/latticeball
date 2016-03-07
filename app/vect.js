@@ -6,11 +6,9 @@ var TAU = util.TAU;
 function V(x, y) {
     this.x = x;
     this.y = y;
-
-    comprops(this);
 }
 
-V.comprops = {
+comprops(V.prototype, {
     angle: function (v) {
         var a = Math.atan2(v.y, v.x);
         return a < 0 ? TAU + a : a;
@@ -27,7 +25,7 @@ V.comprops = {
     cw90deg: function (v) {
         return new V(-v.y, v.x);
     }
-};
+});
 
 V.prototype.dot = function (v) {
     return (this.x * v.x) + (this.y * v.y);
@@ -52,18 +50,16 @@ V.prototype.reflect = function (v) {
 function L(a, b) {
     this.a = a;
     this.b = b;
-
-    comprops(this);
 }
 
-L.comprops = {
+comprops(L.prototype, {
     direction: function (l) {
         return l.b.sub(l.a);
     },
     normal: function (l) {
         return l.direction.norm.cw90deg;
     }
-};
+});
 
 
 exports = module.exports = { V: V, L: L };

@@ -1,24 +1,23 @@
-function comprops(o) {
-    o.compropCache = {};
-
-    for (var f in o.constructor.comprops) {
-        Object.defineProperty(o, f,
-            (function (comprop) {
+function comprops(proto, comprops) {
+    for (var key in comprops) {
+        Object.defineProperty(proto, key,
+            (function (key, func) {
                 return {
                     get: function () {
-                        if (!(comprop in this.compropCache)) {
-                            this.compropCache[comprop] =
-                                this.constructor.comprops[comprop](this);
+                        if (! ("compropCache" in this)) {
+                            this["compropCache"] = {};
                         }
 
-                        return this.compropCache[comprop];
+                        if (! (key in this.compropCache)) {
+                            this.compropCache[key] = func(this);
+                        }
+                        
+                        return this.compropCache[key];
                     }
                 };
-            })(f)
+            })(key, comprops[key])
         );
     }
-
-    return o;
 }
 
 
