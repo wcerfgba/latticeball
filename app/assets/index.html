@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-<title>latticeball - 0.0.0</title>
+<title>latticeball</title>
 <script src="app.js"></script>
 <script>require("main")();</script>
 </head>
@@ -9,6 +9,10 @@
 <div id="menuWrapper">
 <div id="menu">
 <h1>latticeball</h1>
+<div id="ctrls">
+<p>Left/right arrow keys: Move shield</p>
+<p>Esc: Return to this menu</p>
+</div>
 <div class="opt">
 <label for="gameTypeSelect">Game type</label>
 <select id="gameTypeSelect">
@@ -32,6 +36,7 @@ canvas { position: absolute; }
 #menu { display: flex; flex-direction: column; justify-content: center;
         align-center: middle; }
 h1 { margin-bottom: 20px; text-align: center; }
+#ctrls { font-size: small; text-align: center; margin-bottom: 20px; }
 #optsDiv { margin-top: 20px; }
 .opt { display: flex; margin: 0 20px 0 20px; justify-content: space-between; }
 label { text-align: left; }

@@ -30,8 +30,7 @@ function SPPolygon(viewport, settings) {
         var startAngle = disp_angle + (TAU / 4) + (angle / 2);
         var endAngle = disp_angle + (TAU * (3 / 4)) - (angle / 2);
         var shieldCenter = (startAngle + endAngle) / 2;
-        var style = i === this.player ? settings.playerStyle : 
-                                        settings.nodeStyle;
+        var style = i === 0 ? settings.playerStyle : settings.nodeStyle;
         
         this.players[i] = new Player(position, this.viewport, 
                                  startAngle, (TAU / 2) - angle,

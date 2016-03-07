@@ -42,8 +42,8 @@ function buildGame(viewport) {
         case "lattice":
             var shape = elements.latticeShape.lastChild;
             settings.shape = shape.options[shape.selectedIndex].value;
-            if (settings.shape === "hex" ||
-                settings.shape === "square") {
+            if (settings.shape !== "hex" &&
+                settings.shape !== "square") {
                 settings.shape = "hex";
             }
             constructor = SPLattice;

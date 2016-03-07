@@ -60,18 +60,13 @@ Game.prototype.detectCollision = function () {
     return false;
 };
 
-// TODO: Lightweight game over implementation.
 Game.prototype.isGameFinished = function () {
-    if (this.players[this.player].health == 0) {
+    if (this.player.health === 0) {
         return "CPU wins";
     }
 
-    for (var i = 0; i < this.players.length; i++) {
-        if (i === this.player) {
-            continue;
-        }
-
-        if (this.players[i].health > 0) {
+    for (var i = 0; i < this.ais.length; i++) {
+        if (this.ais[i].health > 0) {
             return false;
         }
     }

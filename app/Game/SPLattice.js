@@ -22,16 +22,18 @@ function SPLattice(viewport, settings) {
     this.aiSpeed = settings.aiSpeed;
     this.player;
     this.collisionCellSize = settings.collisionCellSize;
+    
+    var playerIdx = Math.floor((xDensity * yDensity) / 2);
 
     for (var i = 0; i < this.players.length; i++) {
         var x = ((i % xDensity) * settings.spacing) +
                 (1.5 * settings.nodeRadius);
         var y = (Math.floor(i / xDensity) * settings.spacing) +
                     (1.5 * settings.nodeRadius);
-        var style = i === this.player ? settings.playerStyle : 
-                                        settings.nodeStyle;
+        var style = i === playerIdx ? settings.playerStyle : settings.nodeStyle;
 
-        if ((Math.floor(i / xDensity) % 2) == 1) {
+        if (settings.shape === "hex" &&
+            (Math.floor(i / xDensity) % 2) == 1) {
             x += Math.floor(settings.spacing / 2);
         }
         
@@ -40,7 +42,7 @@ function SPLattice(viewport, settings) {
                                      settings.nodeRadius + 5,
                                      settings.shieldHalfWidth * TAU, style);
 
-        if (i === Math.floor((xDensity * yDensity) / 2)) {
+        if (i === playerIdx) {
             this.player = this.players[i];
         } else {
             this.ais.push(this.players[i]);

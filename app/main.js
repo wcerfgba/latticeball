@@ -49,13 +49,15 @@ function run () {
             game.ball.redraw();
             game.redrawActive(); 
            
-            if (game.isOver) {
+            var gameOverMsg = game.isGameFinished();
+            if (gameOverMsg) {
                 game.viewport.ctx.font = "48px sans";
-                var metrics = game.viewport.ctx.measureText(game.overMsg);
+                game.viewport.ctx.fillStyle = "rgb(127, 127, 127)";
+                var metrics = game.viewport.ctx.measureText(gameOverMsg);
                 game.viewport.ctx.fillText(
-                            game.overMsg,
+                            gameOverMsg,
                             (game.viewport.canvas.width - metrics.width) / 2,
-                            (game.viewport.canvas.height - metrics.height) / 2);
+                            (game.viewport.canvas.height + 48) / 2);
             } else { 
                 before = timestamp;
                 animFrameHolder.value = requestAnimationFrame(animate);
