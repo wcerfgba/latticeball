@@ -61,7 +61,6 @@ exports = module.exports = {
         var listener = function (e) {
             if (e.keyCode === 27) {
                 cancelAnimationFrame(animFrameHolder.value);
-                game.stopAIs();
                 elements.menuWrapper.style.display = "table";
                     // ???
                 window.removeEventListener("keyup", listener);

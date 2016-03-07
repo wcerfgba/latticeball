@@ -10,11 +10,12 @@ var TAU = util.TAU;
 function SPPolygon(viewport, settings) {
     this.viewport = viewport;
     this.players = new Array(settings.sides);
-    this.player = 0;
+    this.player;
     this.bounds = new Array(settings.sides);
     this.ball = new Ball(new V(this.viewport.center.x, this.viewport.center.y),
                          this.viewport, settings.ballRadius);
-    this.ais = new Array(settings.sides - 1);
+    this.ais = new Array();
+    this.aiSpeed = settings.aiSpeed;
     this.collisionCellSize = settings.collisionCellSize;
     
     var radius = Math.min(this.viewport.center.x, this.viewport.center.y) - 10;
@@ -35,7 +36,13 @@ function SPPolygon(viewport, settings) {
         this.players[i] = new Player(position, this.viewport, 
                                  startAngle, (TAU / 2) - angle,
                                  settings.nodeRadius, settings.nodeRadius + 5,
-                                 settings.shieldHalfWidth, style);
+                                 settings.shieldHalfWidth * angle, style);
+
+        if (i === 0) {
+            this.player = this.players[i];
+        } else {
+            this.ais.push(this.players[i]);
+        }
     }
 
     for (var i = 0; i < settings.sides; i++) {
@@ -43,11 +50,6 @@ function SPPolygon(viewport, settings) {
                               this.players[i].startBound.b,
                               this.players[(i + 1) % settings.sides].endBound.b,
                               this.viewport);
-    }
-        
-    for (var i = 1; i < this.players.length; i++) {
-        this.ais[i - 1] = setInterval(
-                           Game.buildAI(this.players[i], this.ball, 0.04), 100);
     }
 
     Game.setCollisionMap(this);

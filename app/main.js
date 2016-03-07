@@ -1,11 +1,10 @@
 "use strict";
+
 exports = module.exports = function () {
     document.addEventListener("DOMContentLoaded", function (event) {
         run();
     });
 };
-
-
 
 
 var elements = require("elements");
@@ -15,25 +14,8 @@ var Viewport = require("Viewport");
 
 
 function run () {
-    /*var canvas = document.getElementById("canvas");
-    var menu_wrapper = document.getElementById("menu-wrapper");
-    var gameTypeSelect = document.getElementById("game-type");
-    var optsDiv = document.getElementById("opts");
-    var playBtn = document.getElementById("play");
-
-    var optsEls = buildOptionsHTMLElements();
-
-    var gameTypeHandler = buildGameTypeHandler(gameTypeSelect, optsDiv, optsEls,
-                                               gameSettings);
-    gameTypeHandler();*/
-
- //   elements.populate();
-
-  //  var gameSettings = {};
-
     var gameTypeListener = listeners.gameType();
     gameTypeListener();
-    //elements.gameTypeSelect.addEventListener("change", listeners.gameType);
     
     elements.playSubmit.addEventListener("click", function (e) {
         var animFrameHolder = { value: null };
@@ -41,7 +23,7 @@ function run () {
         var game = buildGame(viewport);
 
         var resizeListener = listeners.resize(game);
-        var controlListener = listeners.control(game.players[game.player]);
+        var controlListener = listeners.control(game.player);
         listeners.escKey(animFrameHolder, game,
                          resizeListener, controlListener);
 
@@ -63,6 +45,7 @@ function run () {
                 time -= t;
             }
            
+            game.updateAIs();
             game.ball.redraw();
             game.redrawActive(); 
            

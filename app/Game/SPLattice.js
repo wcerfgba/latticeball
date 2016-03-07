@@ -18,8 +18,9 @@ function SPLattice(viewport, settings) {
     this.players = new Array(xDensity * yDensity);
     this.bounds = new Array(4);
     this.ball = new Ball(new V(100, 100), this.viewport, settings.ballRadius);
-    this.ais = new Array(this.players.length - 1);
-    this.player = Math.floor((xDensity * yDensity) / 2);
+    this.ais = new Array();
+    this.aiSpeed = settings.aiSpeed;
+    this.player;
     this.collisionCellSize = settings.collisionCellSize;
 
     for (var i = 0; i < this.players.length; i++) {
@@ -37,7 +38,13 @@ function SPLattice(viewport, settings) {
         this.players[i] = new Player(new V(x, y), this.viewport, 0, TAU, 
                                      settings.nodeRadius,
                                      settings.nodeRadius + 5,
-                                     settings.shieldHalfWidth, style);
+                                     settings.shieldHalfWidth * TAU, style);
+
+        if (i === Math.floor((xDensity * yDensity) / 2)) {
+            this.player = this.players[i];
+        } else {
+            this.ais.push(this.players[i]);
+        }
     }
 
     this.bounds[0] = new Bound(new V(0, 0),
@@ -52,16 +59,6 @@ function SPLattice(viewport, settings) {
                                this.viewport);
     this.bounds[3] = new Bound(this.bounds[2].b, this.bounds[0].a,
                                this.viewport);
-
-    for (var i = 0; i < this.players.length; i++) {
-        if (i == this.player) {
-            continue;
-        }
-
-    // TODO: AIs in main loop
-        this.ais.push(setInterval(
-                          Game.buildAI(this.players[i], this.ball, 0.04), 100));
-    }
 
     Game.setCollisionMap(this);
 }

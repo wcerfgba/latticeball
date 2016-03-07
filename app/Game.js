@@ -5,34 +5,29 @@ var TAU = util.TAU;
 
 function Game() {}
 
-Game.buildAI = function (player, ball, max_adjust) {
-    return function () {
-        var a = ball.position.sub(player.position).angle;
-        var shieldCenter = player.shieldAngle;
+Game.prototype.updateAIs = function () {
+    for (var i = 0; i < this.ais.length; i++) {
+        var a = this.ball.position.sub(this.ais[i].position).angle;
+        var shieldCenter = this.ais[i].shieldAngle;
 
         if (a < shieldCenter) {
             if (shieldCenter - a < TAU / 2) {
-                player.moveShield(-Math.min(max_adjust, shieldCenter - a));
+                this.ais[i].moveShield(-Math.min(this.aiSpeed,
+                                                 shieldCenter - a));
             } else {
-                player.moveShield(Math.min(max_adjust,
-                                            a + TAU - shieldCenter));
+                this.ais[i].moveShield(Math.min(this.aiSpeed,
+                                                a + TAU - shieldCenter));
             } 
         } else {
             if (a - shieldCenter < TAU / 2) {
-                player.moveShield(Math.min(max_adjust, a - shieldCenter));
+                this.ais[i].moveShield(Math.min(this.aiSpeed,
+                                                a - shieldCenter));
             } else {
-                player.moveShield(-Math.min(max_adjust,
-                                           shieldCenter + TAU - a));
+                this.ais[i].moveShield(-Math.min(this.aiSpeed,
+                                                 shieldCenter + TAU - a));
             } 
         }
-    };
-};
-
-
-Game.prototype.stopAIs = function () {
-    for (var i = 0; i < this.ais.length; i++) {
-        clearInterval(this.ais[i]);
-    }
+    } 
 };
 
 Game.prototype.detectCollision = function () {
