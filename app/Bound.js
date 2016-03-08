@@ -1,6 +1,12 @@
+"use strict";
+
 var L = require("vect").L;
 
 
+/**
+ * Represents a bound or wall in the game. Basically a line segment with which 
+ * a {@link Ball} can collide. Inherits from {@link L}.
+ */
 function Bound(a, b, viewport) {
     L.call(this, a, b);
 
@@ -10,6 +16,12 @@ function Bound(a, b, viewport) {
 };
 Bound.prototype = Object.create(L.prototype);
 
+/**
+ * If a {@link Ball} is within a box with upper-left coordinate (`x`, `y`) and 
+ * length and width `size`, then a collision with the Bound is possible if the 
+ * Bound intersects said box, which is what this function tests. Used for 
+ * spatial partitioning for collision detection and repaints.
+ */
 Bound.prototype.collisionPossible = function (x, y, size) {
     // Set horizontal and vertical lines of the box.
     var w_x = x;
@@ -49,6 +61,9 @@ Bound.prototype.collisionPossible = function (x, y, size) {
     return false;
 };
 
+/**
+ * Test for collision with a {@link Ball} and updates its velocity.
+ */
 Bound.prototype.collisionHandler = function (ball) {
     var v = ball.position.sub(this.a);
     var pos_normal = v.dot(this.normal);
@@ -66,6 +81,9 @@ Bound.prototype.collisionHandler = function (ball) {
     return false;
 };
 
+/**
+ * Clear and redraw Bound.
+ */
 Bound.prototype.redraw = function () {
     var a_x = this.a.x - this.viewport.position.x;
     var a_y = this.a.y - this.viewport.position.y;

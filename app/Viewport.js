@@ -1,3 +1,9 @@
+"use strict";
+
+/**
+ * Represents the visible portion of a game. Holds the canvas and the offset 
+ * coordinate.
+ */
 function Viewport(canvas) {
     this.canvas = canvas;
     this.ctx = this.canvas.getContext("2d");
@@ -6,6 +12,7 @@ function Viewport(canvas) {
 
     this.fillWindow();
 
+    // A full vector type isn't needed here.
     this.position = { x: 0, y: 0 };
 
     Object.defineProperty(this, "limit", {
@@ -28,6 +35,10 @@ Viewport.prototype.translate = function (x, y) {
     this.position.y += y;
 }
 
+/**
+ * Resizes the canvas about its center by appropriately changing the offset 
+ * position.
+ */
 Viewport.prototype.resize = function () {
     var center = this.center;
     this.fillWindow();

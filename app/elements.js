@@ -1,11 +1,13 @@
+"use strict";
+
 var elements = {};
 
 
+// Build getters for pre-defined elements. This permits loading this module 
+// before the DOM has finished loading.
 var ids = [ "menuWrapper", "gameTypeSelect", "optsDiv", "playSubmit",
             "canvas" ];
 
-// Build getters for pre-defined elements. This permits loading this module 
-// before the rest of the page.
 for (var i = 0; i < ids.length; i++) {
     var id = ids[i];
 
@@ -19,6 +21,7 @@ for (var i = 0; i < ids.length; i++) {
 }
 
 
+// Generate defined elements.
 var definitions = [
     [ "input", { id: "polygonSides", type: "number", min: "2", value: "6" },
       "Sides" ],
@@ -36,7 +39,6 @@ var definitions = [
       "Node size" ] 
 ];
 
-// Generate defined elements.
 for (var i = 0; i < definitions.length; i++) {
     var def = definitions[i];
     var id = def[1].id;

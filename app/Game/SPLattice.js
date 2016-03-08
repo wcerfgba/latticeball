@@ -1,3 +1,5 @@
+"use strict";
+
 var Game = require("Game");
 var Ball = require("Ball");
 var Player = require("Player");
@@ -5,15 +7,20 @@ var Bound = require("Bound");
 var V = require("vect").V;
 var util = require("util");
 
-var TAU = util.TAU;
 
+/**
+ * Represents a game on a square or hexagonal/triangular lattice of points, 
+ * with a {@link Player} on each point.
+ */
 function SPLattice(viewport, settings) {
     this.viewport = viewport;
-    
+   
+    // Ensure spacing is always sufficient. 
     settings.spacing += settings.nodeRadius;
     
-    var xDensity = Math.floor(this.viewport.canvas.width / settings.spacing);
-    var yDensity = Math.floor(this.viewport.canvas.height / settings.spacing);
+    // Calculate number of players per row and column.
+    var xDensity = Math.ceil(this.viewport.canvas.width / settings.spacing);
+    var yDensity = Math.ceil(this.viewport.canvas.height / settings.spacing);
 
     this.players = new Array(xDensity * yDensity);
     this.bounds = new Array(4);
@@ -23,24 +30,29 @@ function SPLattice(viewport, settings) {
     this.player;
     this.collisionCellSize = settings.collisionCellSize;
     
+    // Human player goes in the middle.
     var playerIdx = Math.floor((xDensity * yDensity) / 2);
 
+    // Build Player objects.
     for (var i = 0; i < this.players.length; i++) {
+        // Place at each point of the lattice, with a fixed offset.
         var x = ((i % xDensity) * settings.spacing) +
                 (1.5 * settings.nodeRadius);
         var y = (Math.floor(i / xDensity) * settings.spacing) +
                     (1.5 * settings.nodeRadius);
         var style = i === playerIdx ? settings.playerStyle : settings.nodeStyle;
 
+        // In a hex grid, every other row is offset by a half.
         if (settings.shape === "hex" &&
             (Math.floor(i / xDensity) % 2) == 1) {
             x += Math.floor(settings.spacing / 2);
         }
         
-        this.players[i] = new Player(new V(x, y), this.viewport, 0, TAU, 
+        this.players[i] = new Player(new V(x, y), this.viewport, 0, util.TAU, 
                                      settings.nodeRadius,
                                      settings.nodeRadius + 5,
-                                     settings.shieldHalfWidth * TAU, style);
+                                     settings.shieldHalfWidth * util.TAU,
+                                     style);
 
         if (i === playerIdx) {
             this.player = this.players[i];
@@ -49,6 +61,7 @@ function SPLattice(viewport, settings) {
         }
     }
 
+    // Fixed bounds at the edges.
     this.bounds[0] = new Bound(new V(0, 0),
                                new V(this.viewport.canvas.width, 0),
                                this.viewport);

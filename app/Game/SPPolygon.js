@@ -1,3 +1,5 @@
+"use strict";
+
 var Game = require("Game");
 var Ball = require("Ball");
 var Player = require("Player");
@@ -5,8 +7,10 @@ var Bound = require("Bound");
 var V = require("vect").V;
 var util = require("util");
 
-var TAU = util.TAU;
 
+/**
+ * Build a game in a regular polygon, with players at the vertices.
+ */
 function SPPolygon(viewport, settings) {
     this.viewport = viewport;
     this.players = new Array(settings.sides);
@@ -17,23 +21,28 @@ function SPPolygon(viewport, settings) {
     this.ais = new Array();
     this.aiSpeed = settings.aiSpeed;
     this.collisionCellSize = settings.collisionCellSize;
-    
+   
+    // Make the polygon a little smaller than the viewport will allow. 
     var radius = Math.min(this.viewport.center.x, this.viewport.center.y) - 10;
-    var angle = TAU / settings.sides;
+    // Set interior angle.
+    var angle = util.TAU / settings.sides;
     
+    // Build each Player.
     for (var i = 0; i < settings.sides; i++) {
+        // Displacement around the circle circumscribing the polygon.
         var disp_angle = i * angle;
         var position = new V(this.viewport.center.x +
                                 (Math.cos(disp_angle) * radius),
                              this.viewport.center.y +
                                 (Math.sin(disp_angle) * radius));
-        var startAngle = disp_angle + (TAU / 4) + (angle / 2);
-        var endAngle = disp_angle + (TAU * (3 / 4)) - (angle / 2);
-        var shieldCenter = (startAngle + endAngle) / 2;
+        // Convert displacement to angle at vertex of the appropriate side of 
+        // the polygon.
+        var startAngle = disp_angle + (util.TAU / 4) + (angle / 2);
+        var shieldCenter = disp_angle + (util.TAU / 2);
         var style = i === 0 ? settings.playerStyle : settings.nodeStyle;
         
         this.players[i] = new Player(position, this.viewport, 
-                                 startAngle, (TAU / 2) - angle,
+                                 startAngle, (util.TAU / 2) - angle,
                                  settings.nodeRadius, settings.nodeRadius + 5,
                                  settings.shieldHalfWidth * angle, style);
 
@@ -44,6 +53,8 @@ function SPPolygon(viewport, settings) {
         }
     }
 
+    // Add a bound between the corners of each pair of nodes, closing the 
+    // polygon.
     for (var i = 0; i < settings.sides; i++) {
         this.bounds[i] = new Bound(
                               this.players[i].startBound.b,

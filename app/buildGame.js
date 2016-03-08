@@ -1,9 +1,14 @@
+"use strict";
+
 var elements = require("elements");
 
 var SPPolygon = require("Game/SPPolygon");
 var SPLattice = require("Game/SPLattice");
 
 
+/**
+ * Default game settings.
+ */
 var defaults = { collisionCellSize: 20,
                  nodeRadius: 40,
                  shieldRadius: 45,
@@ -20,6 +25,10 @@ var defaults = { collisionCellSize: 20,
                  spacing: 100 };
 
 
+/**
+ * Takes a {@link Viewport}, extracts settings from the DOM, and constructs the 
+ * appropriate Game object.
+ */
 function buildGame(viewport) {
     var settings = {};
     var type = elements.gameTypeSelect

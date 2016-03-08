@@ -1,16 +1,23 @@
+"use strict";
+
 var V = require("vect").V;
 var Bound = require("Bound");
 var util = require("util");
 
-var TAU = util.TAU;
 
+/**
+ * Represents a player, a circle or circle segment with health and a shield.
+ */
 function Player(position, viewport, startAngle, angleRange, radius,
                 shieldRadius, shieldHalfWidth, style) {
     this.position = position;
     this.viewport = viewport;
     this.startAngle = startAngle;
     this.angleRange = angleRange;
-    this.fullCircle = this.angleRange + 0.01 > TAU ? true : false;
+    // Slightly fuzzy test to see if we are a full circle. If so, we don't need 
+    // start and end bounds, and we do not have to test for angle limits when 
+    // moving the shield or detecting collisions.
+    this.fullCircle = this.angleRange + 0.01 > util.TAU ? true : false;
     this.endAngle = this.startAngle + this.angleRange;
     this.radius = radius;
     
@@ -35,6 +42,9 @@ function Player(position, viewport, startAngle, angleRange, radius,
     this.damageRate = 0.1;
 }
 
+/**
+ * Modify shield angle if within limits, and redraw immediately.
+ */
 Player.prototype.moveShield = function (a) {
     this.clearShield();
 
@@ -51,13 +61,20 @@ Player.prototype.moveShield = function (a) {
     this.redrawShield();
 };
 
+/**
+ * Collision detection spatial partitioning.
+ */
 Player.prototype.collisionPossible = function (x, y, size) {
     var radius = size / 2;
     var center = new V(x + radius, y + radius);
     var v = center.sub(this.position);
+    // Distance to the edge of the box from its center is given by dividing the 
+    // radius of the inscribed circle by the maximum of the absolutes of the 
+    // sine and cosine of the angle around the center.
     var edge_dist = radius / Math.max(Math.abs(Math.cos(v.angle)),
                                       Math.abs(Math.sin(v.angle)));
 
+    // Collision possible if player circle intersects box.
     if (v.mag < this.shieldRadius + edge_dist + 1 &&
         ((!this.fullCircle &&
           util.angle.between(this.startAngle, v.angle, this.endAngle)) ||
@@ -65,6 +82,7 @@ Player.prototype.collisionPossible = function (x, y, size) {
         return true;
     }
 
+    // Collision also possible with bounds.
     if (!this.fullCircle &&
         (this.startBound.collisionPossible(x, y, size) ||
          this.endBound.collisionPossible(x, y, size))) {
@@ -74,14 +92,19 @@ Player.prototype.collisionPossible = function (x, y, size) {
     return false;
 };
 
+/**
+ * Collides a {@link Ball} with this player, taking damage if appropriate.
+ */
 Player.prototype.collisionHandler = function (ball) {
     var v = ball.position.sub(this.position);
-    var normal_velocity = -v.dot( ball.velocity);
+    var normal_velocity = -v.dot(ball.velocity);
 
+    // No collision if we are moving away from the player.
     if (normal_velocity < 0) {
         return false;
     }
 
+    // If we are alive and ball hits the shield, bounce it.
     if (this.health > 0 &&
         v.magsq < Math.pow(this.shieldRadius + ball.radius, 2) + 1 &&
         util.angle.between(this.shieldStartAngle, v.angle,
@@ -91,6 +114,7 @@ Player.prototype.collisionHandler = function (ball) {
         return true;
     }
 
+    // Collide with player, take damage.
     if (v.magsq < Math.pow(this.radius + ball.radius, 2) + 1 &&
         ((!this.fullCircle &&
           util.angle.between(this.startAngle, v.angle, this.endAngle)) ||
@@ -100,6 +124,7 @@ Player.prototype.collisionHandler = function (ball) {
         return true;
     }
 
+    // Collide with bounds, take damage.
     if (!this.fullCircle && 
         (this.startBound.collisionHandler(ball) ||
          this.endBound.collisionHandler(ball))) {
@@ -110,6 +135,9 @@ Player.prototype.collisionHandler = function (ball) {
     return false;
 };
 
+/**
+ * Reduce health by damage rate, and destroy the shield if we are dead.
+ */
 Player.prototype.takeDamage = function () {
     if (this.health < this.damageRate + 0.001) {
         this.clearShield();
@@ -119,6 +147,9 @@ Player.prototype.takeDamage = function () {
     }
 };
 
+/**
+ * Clear and redraw the player without the shield.
+ */
 Player.prototype.redrawNode = function () {
     var x = this.position.x - this.viewport.position.x;
     var y = this.position.y - this.viewport.position.y;
@@ -155,6 +186,7 @@ Player.prototype.redrawNode = function () {
 };
 
 Player.prototype.clearShield = function () {
+    // If dead, don't do anything.
     if (this.health == 0) {
         return false;
     }
@@ -181,6 +213,7 @@ Player.prototype.clearShield = function () {
 };
 
 Player.prototype.redrawShield = function () {
+    // Redraw if shield was successfully cleared and we are alive.
     if (this.clearShield() && this.health > 0) {
         var x = this.position.x - this.viewport.position.x;
         var y = this.position.y - this.viewport.position.y;
@@ -199,6 +232,9 @@ Player.prototype.redrawShield = function () {
     return false;
 };
 
+/**
+ * Wraps type specific functions to satisfy the {@link Game} interface.
+ */
 Player.prototype.redraw = function () {
     this.redrawNode();
     this.redrawShield();

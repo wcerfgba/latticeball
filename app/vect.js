@@ -1,8 +1,12 @@
+"use strict";
+
 var comprops = require("comprops");
 var util = require("util");
 
-var TAU = util.TAU;
 
+/**
+ * Vector type.
+ */
 function V(x, y) {
     this.x = x;
     this.y = y;
@@ -11,7 +15,7 @@ function V(x, y) {
 comprops(V.prototype, {
     angle: function (v) {
         var a = Math.atan2(v.y, v.x);
-        return a < 0 ? TAU + a : a;
+        return a < 0 ? util.TAU + a : a;
     },
     magsq: function (v) {
         return Math.pow(v.x, 2) + Math.pow(v.y, 2);
@@ -39,6 +43,11 @@ V.prototype.sub = function (v) {
     return new V(this.x - v.x, this.y - v.y);
 };
 
+/**
+ * Reflect this vector in a given vector. The component perpendicular to the 
+ * reflection vector is preserved, but the parallel component has its sign 
+ * inverted.
+ */
 V.prototype.reflect = function (v) {
     var n = this.dot(v.norm);
     var p = this.dot(v.norm.cw90deg);
@@ -47,6 +56,11 @@ V.prototype.reflect = function (v) {
 };
 
 
+/**
+ * Line segment type.
+ * @param {V} a - Start position vector.
+ * @param {V} b - End position vector.
+ */
 function L(a, b) {
     this.a = a;
     this.b = b;

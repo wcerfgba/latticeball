@@ -1,8 +1,16 @@
+"use strict";
+
 var elements = require("elements");
 
 
+/**
+ * These functions construct, bind, and return listeners.
+ */
 exports = module.exports = {
-    
+   
+    /**
+     * Manages displaying game type specific settings when game type changes.
+     */ 
     gameType: function () {
         var listener = function (e) {
             switch (elements.gameTypeSelect
@@ -27,6 +35,9 @@ exports = module.exports = {
         return listener;
     },
 
+    /**
+     * Resize and redraw game when window is resized.
+     */
     resize: function (game) {
         var listener = (function () {
             var timeout;
@@ -44,6 +55,9 @@ exports = module.exports = {
         return listener;
     },
 
+    /**
+     * Keyboard controls for shield.
+     */
     control: function (player) {
         var listener = function (e) {
             if (e.keyCode === 37) { // Left
@@ -57,19 +71,25 @@ exports = module.exports = {
         return listener;
     },
     
+    /**
+     * Esc key stops the game and shows the menu.
+     */
     escKey: function (animFrameHolder, game, resizeListener, controlListener) {
-        var listener = function (e) {
-            if (e.keyCode === 27) {
-                cancelAnimationFrame(animFrameHolder.value);
-                elements.menuWrapper.style.display = "table";
-                    // ???
-                window.removeEventListener("keyup", listener);
-                window.removeEventListener("resize", resizeListener);
-                window.removeEventListener("keydown", controlListener);
-            }
+        // Construct an anonymous function to return the listener so we can 
+        // give it a reference to itself, so it can remove itself.
+        var listener = function (listener) {
+            return function (e) {
+                if (e.keyCode === 27) {
+                    cancelAnimationFrame(animFrameHolder.value);
+                    elements.menuWrapper.style.display = "inline";
+                    window.removeEventListener("keyup", listener);
+                    window.removeEventListener("resize", resizeListener);
+                    window.removeEventListener("keydown", controlListener);
+                }
+            };
         };
 
-        window.addEventListener("keyup", listener);
+        window.addEventListener("keyup", listener(listener));
         return listener;
     }
 };
